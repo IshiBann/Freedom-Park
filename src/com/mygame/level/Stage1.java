@@ -27,8 +27,6 @@ public class Stage1 extends Stage {
         platforms.add(new Platform(0, 200, 425, 20)); // Platform 5
         key = new Key(20, 100);
         door = new Door(950, 304);
-
-        boxes.add(new Box(500, 600));
-        boxes.add(new Box(750, 600));
+    
     }
 }

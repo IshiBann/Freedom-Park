@@ -22,6 +22,9 @@ public class StageManager {
     private void loadStages() {
         stages.add(new Stage1());
         stages.add(new Stage2());
+        stages.add(new Stage3());
+        stages.add(new Stage4());
+        stages.add(new Stage5());
     }
 
     public void update(Player player) {

@@ -17,6 +17,9 @@ src\com\mygame\level\Platform.java ^
 src\com\mygame\level\Stage.java ^
 src\com\mygame\level\Stage1.java ^
 src\com\mygame\level\Stage2.java ^
+src\com\mygame\level\Stage3.java ^
+src\com\mygame\level\Stage4.java ^
+src\com\mygame\level\Stage5.java ^
 src\com\mygame\level\StageManager.java
 if %errorlevel% neq 0 (
     echo Compilation FAILED.

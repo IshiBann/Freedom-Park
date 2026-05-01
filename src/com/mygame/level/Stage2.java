@@ -21,7 +21,7 @@ public class Stage2 extends Stage {
 
 		// Sample platforms (tweak positions/sizes for your level)
 		platforms.add(new Platform(0,   700, 1200, 50)); // Ground
-		platforms.add(new Platform(200,  550, 200, 20));
+		platforms.add(new Platform(200,  500, 200, 20));
 		platforms.add(new Platform(500,  450, 200, 20));
 		platforms.add(new Platform(800,  350, 200, 20));
 
@@ -29,5 +29,8 @@ public class Stage2 extends Stage {
 		// key = new Key(400, 420);
 		// door = new Door(1050, 304);
 		// boxes.add(new Box(600, 400));
+        boxes.add(new Box(850, 660));
+        key = new Key(800, 300);
+        door = new Door(950, 605);
 	}
 }
