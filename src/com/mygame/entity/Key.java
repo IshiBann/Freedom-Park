@@ -12,6 +12,7 @@ public class Key {
     private int y;
 
     private boolean collected = false;
+    private boolean used = false;
 
     private BufferedImage image;
 
@@ -29,6 +30,7 @@ public class Key {
     }
 
     public void update(Player player) {
+        if (used) return;
 
         if (!collected) {
 
@@ -50,8 +52,12 @@ public class Key {
     }
 
     public void draw(Graphics g) {
-        if (image != null) {
+        if (image != null && !used) {
             g.drawImage(image, x, y, 32, 32, null);
         }
+    }
+
+    public void setUsed(boolean used) {
+        this.used = used;
     }
 }

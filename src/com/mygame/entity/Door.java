@@ -44,8 +44,10 @@ public class Door {
                 player.getY() < y + 96 &&
                 player.getY() + player.getHeight() > y;
 
-        if (touching && player.hasKey()) {
+        if (touching && player.hasKey() && !unlocked) {
             unlocked = true;
+            player.setHasKey(false);
+            System.out.println("Door unlocked!");
         }
     }
 
@@ -59,14 +61,19 @@ public class Door {
         }
     }
 
-    public boolean canEnter(Player player) {
+    public boolean isUnlocked() {
+        return unlocked;
+    }
 
-        boolean touching =
-                player.getX() < x + 64 &&
-                player.getX() + player.getWidth() > x &&
+    public boolean canEnter(Player player) {
+        // Player center must be within the door's width to "enter"
+        int playerCenterX = player.getX() + player.getWidth() / 2;
+        boolean inDoorCenter = playerCenterX > x + 10 && playerCenterX < x + 54;
+        
+        boolean touchingY = 
                 player.getY() < y + 96 &&
                 player.getY() + player.getHeight() > y;
 
-        return touching && unlocked;
+        return unlocked && inDoorCenter && touchingY;
     }
 }
