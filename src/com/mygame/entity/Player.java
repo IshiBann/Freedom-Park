@@ -6,50 +6,82 @@ import java.awt.RenderingHints;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.List;
 import javax.imageio.ImageIO;
+
 import com.mygame.graphics.Animation;
+import com.mygame.level.Platform;
 
 public class Player {
     private int x = 100;
-    private int y = 250;
+    private int y = 686;
     private int speed = 3;
     private boolean facingLeft = false;
-    private boolean movingLeft, movingRight, movingUp, movingDown;
-
+    private boolean movingLeft, movingRight;
+    private boolean isJumping = false;
+    private double jumpVelocity = 0;
+    private final double gravity = 0.6;
+    private final double jumpPower = -15.0;
+    private boolean hasKey = false;
     private Animation walkAnim;
     private BufferedImage idleFrame;
+    private BufferedImage jumpIcon;
 
-    public Player() {
+    public Player(int startX, int startY) {
+        this.x = startX;
+        this.y = startY;
         loadAnimations();
+        System.out.println(getSpriteHeight());
+    }
+
+    public void draw(Graphics g) {
+        BufferedImage frame = null;
+        
+        if (isJumping && jumpIcon != null) {
+            frame = jumpIcon;
+        } else if (isMoving() && walkAnim != null) {
+            frame = walkAnim.getCurrentFrame();
+        } else if (idleFrame != null) {
+            frame = idleFrame;
+        }
+
+        if (frame == null) return;
+
+        if (facingLeft) {
+            g.drawImage(frame, x + frame.getWidth(), y, -frame.getWidth(), frame.getHeight(), null);
+        } else {
+            g.drawImage(frame, x, y, null);
+        }
+
+        g.setColor(java.awt.Color.RED);
+        g.drawRect(x, y, getSpriteWidth(), getSpriteHeight()); 
     }
 
     private void loadAnimations() {
-    try {
-        BufferedImage idleRaw = ImageIO.read(getClass().getResourceAsStream("/assets/Standing.png"));
-        BufferedImage f1Raw = ImageIO.read(getClass().getResourceAsStream("/assets/Animation/walking/Walking Frame 1.png"));
-        BufferedImage f2Raw = ImageIO.read(getClass().getResourceAsStream("/assets/Animation/walking/Walking Frame 2.png"));
-        BufferedImage f3Raw = ImageIO.read(getClass().getResourceAsStream("/assets/Animation/walking/Walking Frame 3.png"));
-        BufferedImage f4Raw = ImageIO.read(getClass().getResourceAsStream("/assets/Animation/walking/Walking Frame 4.png"));
+        try {
+            BufferedImage idleRaw = ImageIO.read(getClass().getResourceAsStream("/assets/Standing.png"));
+            BufferedImage f1Raw = ImageIO.read(getClass().getResourceAsStream("/assets/Animation/walking/Walking Frame 1.png"));
+            BufferedImage f2Raw = ImageIO.read(getClass().getResourceAsStream("/assets/Animation/walking/Walking Frame 2.png"));
+            BufferedImage f3Raw = ImageIO.read(getClass().getResourceAsStream("/assets/Animation/walking/Walking Frame 3.png"));
+            BufferedImage f4Raw = ImageIO.read(getClass().getResourceAsStream("/assets/Animation/walking/Walking Frame 4.png"));
 
-        int targetWidth = maxWidth(idleRaw, f1Raw, f2Raw, f3Raw, f4Raw);
-        int targetHeight = maxHeight(idleRaw, f1Raw, f2Raw, f3Raw, f4Raw);
+            int targetWidth = maxWidth(idleRaw, f1Raw, f2Raw, f3Raw, f4Raw);
+            int targetHeight = maxHeight(idleRaw, f1Raw, f2Raw, f3Raw, f4Raw);
 
-        idleFrame = normalizeFrame(idleRaw, targetWidth, targetHeight);
-        BufferedImage f1 = normalizeFrame(f1Raw, targetWidth, targetHeight);
-        BufferedImage f2 = normalizeFrame(f2Raw, targetWidth, targetHeight);
-        BufferedImage f3 = normalizeFrame(f3Raw, targetWidth, targetHeight);
-        BufferedImage f4 = normalizeFrame(f4Raw, targetWidth, targetHeight);
+            idleFrame = normalizeFrame(idleRaw, targetWidth, targetHeight);
+            BufferedImage f1 = normalizeFrame(f1Raw, targetWidth, targetHeight);
+            BufferedImage f2 = normalizeFrame(f2Raw, targetWidth, targetHeight);
+            BufferedImage f3 = normalizeFrame(f3Raw, targetWidth, targetHeight);
+            BufferedImage f4 = normalizeFrame(f4Raw, targetWidth, targetHeight);
 
-        walkAnim = new Animation(new BufferedImage[] { f1, f2, f3, f4 }, 10);
+            walkAnim = new Animation(new BufferedImage[] { f1, f2, f3, f4 }, 10);
+            jumpIcon = normalizeFrame(ImageIO.read(getClass().getResourceAsStream("/assets/Jump Icon.png")), targetWidth, targetHeight);
 
-        System.out.println("idleFrame: " + idleFrame);
-        System.out.println("walkAnim: " + walkAnim);
-
-    } catch (IOException | IllegalArgumentException e) {
-        System.err.println("Could not load player images!");
-        e.printStackTrace();
+        } catch (IOException | IllegalArgumentException e) {
+            System.err.println("Could not load player images!");
+            e.printStackTrace();
+        }
     }
-}
 
     private BufferedImage normalizeFrame(BufferedImage source, int targetWidth, int targetHeight) {
         BufferedImage output = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB);
@@ -80,59 +112,118 @@ public class Player {
         }
         return max;
     }
+
     public void keyPressed(KeyEvent e) {
-    switch (e.getKeyCode()) {
-        case KeyEvent.VK_W -> movingUp = true;
-        case KeyEvent.VK_A -> { movingLeft = true; facingLeft = true; }
-        case KeyEvent.VK_S -> movingDown = true;
-        case KeyEvent.VK_D -> { movingRight = true; facingLeft = false; }
+        switch (e.getKeyCode()) {
+            case KeyEvent.VK_A -> { movingLeft = true; facingLeft = true; }
+            case KeyEvent.VK_D -> { movingRight = true; facingLeft = false; }
+            case KeyEvent.VK_SPACE -> {
+                if (!isJumping) {
+                    isJumping = true;
+                    jumpVelocity = jumpPower;
+                }
+            }
+        }
     }
-}
 
     public void keyReleased(KeyEvent e) {
         switch (e.getKeyCode()) {
-            case KeyEvent.VK_W -> movingUp = false;
             case KeyEvent.VK_A -> movingLeft = false;
-            case KeyEvent.VK_S -> movingDown = false;
             case KeyEvent.VK_D -> movingRight = false;
         }
     }
 
     private boolean isMoving() {
-        return movingLeft || movingRight || movingUp || movingDown;
+        return movingLeft || movingRight;
     }
 
-    public void update() {
-        if (movingRight) x += speed;
+    public void update(List<Platform> platforms) {
+        // Horizontal movement
         if (movingLeft)  x -= speed;
-        if (movingDown)  y += speed;
-        if (movingUp)    y -= speed;
+        if (movingRight) x += speed;
 
-        if (isMoving() && walkAnim != null) {
+        // Apply gravity
+        jumpVelocity += gravity;
+        int deltaY = (int) jumpVelocity;
+
+        int pw = getSpriteWidth();
+        int ph = getSpriteHeight();
+
+        // Store feet position BEFORE moving vertically
+        int prevFeet = y + ph;
+
+        // Move vertically
+        y += deltaY;
+        int newFeet = y + ph;
+        
+        boolean landed = false;
+        for (Platform platform : platforms) {
+
+    int platLeft   = platform.getX();
+    int platRight  = platform.getX() + platform.getWidth();
+    int platTop    = platform.getY();
+    int platBottom = platform.getY() + platform.getHeight();
+
+    boolean overlapX = x + pw > platLeft && x < platRight;
+    boolean overlapY = y + ph > platTop && y < platBottom;
+
+    if (overlapX && overlapY) {
+
+        // Falling onto platform
+        if (jumpVelocity >= 0 && prevFeet <= platTop) {
+            y = platTop - ph;
+            jumpVelocity = 0;
+            isJumping = false;
+            landed = true;
+        }
+
+        // Hitting underside of platform
+        else if (jumpVelocity < 0 && y >= platBottom - 10) {
+            y = platBottom;
+            jumpVelocity = 0;
+        }
+    }
+}
+        
+        
+        // Correctly handle walking off a ledge mid-movement
+        if (!landed && jumpVelocity > gravity) {
+            isJumping = true;
+        }
+
+        // Animation
+        if (isMoving() && !isJumping && walkAnim != null) {
             walkAnim.update();
-        } else if (!isMoving() && walkAnim != null) {
+        } else if (walkAnim != null) {
             walkAnim.reset();
         }
     }
 
-    public void draw(Graphics g) {
-    BufferedImage frame = null;
-
-    if (isMoving() && walkAnim != null) {
-        frame = walkAnim.getCurrentFrame();
-    } else if (idleFrame != null) {
-        frame = idleFrame;
+    private int getSpriteWidth() {
+        return idleFrame != null ? idleFrame.getWidth() : 64;
     }
 
-    if (frame == null) return;
-
-    if (facingLeft) {
-        // Draw the image flipped horizontally
-        g.drawImage(frame, x + frame.getWidth(), y, -frame.getWidth(), frame.getHeight(), null);
-    } else {
-        g.drawImage(frame, x, y, null);
+    private int getSpriteHeight() {
+        return idleFrame != null ? idleFrame.getHeight() : 64;
     }
+    public boolean hasKey() {
+    return hasKey;
 }
 
-    
+public void setHasKey(boolean hasKey) {
+    this.hasKey = hasKey;
+}
+
+public int getWidth() {
+    return getSpriteWidth();
+}
+
+public int getHeight() {
+    return getSpriteHeight();
+}
+    // Getters and Setters
+    public int getX() { return x; }
+    public int getY() { return y; }
+    public void setX(int x) { this.x = x; }
+    public void setY(int y) { this.y = y; }
 }
