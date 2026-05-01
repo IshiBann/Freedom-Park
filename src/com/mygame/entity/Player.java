@@ -259,4 +259,12 @@ public int getHeight() {
     public int getY() { return y; }
     public void setX(int x) { this.x = x; }
     public void setY(int y) { this.y = y; }
+
+    public void stopMovement() {
+        movingLeft = false;
+        movingRight = false;
+        jumpVelocity = 0;
+        isJumping = false;
+        hasKey = false;
+    }
 }

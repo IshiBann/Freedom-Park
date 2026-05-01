@@ -12,6 +12,7 @@ import com.mygame.entity.Player;
 import com.mygame.level.Stage;
 import com.mygame.level.Stage1;
 import com.mygame.level.Stage2;
+import com.mygame.level.StageManager;
 
 public class GamePanel extends JPanel implements Runnable {
     public final int screenWidth = 1200;
@@ -19,7 +20,7 @@ public class GamePanel extends JPanel implements Runnable {
     private boolean gameFinished = false;
     private Thread gameThread;
     private Player player;
-    private Stage currentStage;
+    private StageManager stageManager;
 
     public GamePanel() {
         this.setPreferredSize(new Dimension(screenWidth, screenHeight));
@@ -27,11 +28,11 @@ public class GamePanel extends JPanel implements Runnable {
         this.setDoubleBuffered(true);
         this.setFocusable(true);
 
-        currentStage = new Stage1();
+        stageManager = new StageManager();
 
         player = new Player(
-            currentStage.getPlayerSpawnX(),
-            currentStage.getPlayerSpawnY()
+            stageManager.getCurrentStage().getPlayerSpawnX(),
+            stageManager.getCurrentStage().getPlayerSpawnY()
         );
 
         this.addKeyListener(new KeyAdapter() {
@@ -99,9 +100,6 @@ public void update() {
                 gameFinished = true;
             }
         }
-}
-    public Stage getCurrentStage() {
-        return currentStage;
     }
 
     public void setCurrentStage(Stage stage) {
@@ -109,22 +107,22 @@ public void update() {
         player.setX(stage.getPlayerSpawnX());
         player.setY(stage.getPlayerSpawnY());
         player.setHasKey(false);
+    public StageManager getStageManager() {
+        return stageManager;
     }
 
     @Override
-public void paintComponent(Graphics g) {
-    super.paintComponent(g);
-    Graphics2D g2d = (Graphics2D) g;  // cast here
+    public void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        Graphics2D g2d = (Graphics2D) g;
 
-    currentStage.draw(g2d);
+        stageManager.draw(g2d);
 
-    player.draw(g2d);
+        player.draw(g2d);
 
-    if (gameFinished) {
-        g2d.setColor(java.awt.Color.WHITE);
-        g2d.drawString("Stage Clear!", 40, 40);
+        if (gameFinished) {
+            g2d.setColor(java.awt.Color.WHITE);
+            g2d.drawString("Game Clear!", 40, 40);
+        }
     }
-
-    // Don't dispose g2d here — Swing reuses the Graphics object
-}
 }
