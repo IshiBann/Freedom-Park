@@ -4,9 +4,9 @@ import javax.swing.JFrame;
 
 public class Main {
     public static void main(String[] args) {
-        JFrame window = new JFrame("Walking Animation Demo");
+        JFrame window = new JFrame("Freedom Park - Walking Animation Demo");
         window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        window.setResizable(false);
+        window.setResizable(true);
 
         // Create the game logic panel and add it to the window
         GamePanel gamePanel = new GamePanel();
