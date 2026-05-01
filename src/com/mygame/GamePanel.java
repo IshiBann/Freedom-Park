@@ -8,17 +8,18 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+
 import com.mygame.entity.Player;
-import com.mygame.level.Stage;
-import com.mygame.level.Stage1;
-import com.mygame.level.Stage2;
 import com.mygame.level.StageManager;
 
 public class GamePanel extends JPanel implements Runnable {
+
     public final int screenWidth = 1200;
     public final int screenHeight = 800;
+
     private boolean gameFinished = false;
     private Thread gameThread;
+
     private Player player;
     private StageManager stageManager;
 
@@ -39,15 +40,17 @@ public class GamePanel extends JPanel implements Runnable {
             @Override
             public void keyPressed(KeyEvent e) {
                 player.keyPressed(e);
+
                 if (e.getKeyCode() == KeyEvent.VK_F11) {
                     JFrame topFrame = (JFrame) javax.swing.SwingUtilities.getWindowAncestor(GamePanel.this);
                     if (topFrame != null) {
-                        boolean isFullscreen = (topFrame.getExtendedState() & JFrame.MAXIMIZED_BOTH) == JFrame.MAXIMIZED_BOTH;
-                        if (isFullscreen) {
-                            topFrame.setExtendedState(JFrame.NORMAL);
-                        } else {
-                            topFrame.setExtendedState(JFrame.MAXIMIZED_BOTH);
-                        }
+                        boolean isFullscreen =
+                            (topFrame.getExtendedState() & JFrame.MAXIMIZED_BOTH)
+                            == JFrame.MAXIMIZED_BOTH;
+
+                        topFrame.setExtendedState(
+                            isFullscreen ? JFrame.NORMAL : JFrame.MAXIMIZED_BOTH
+                        );
                     }
                 }
             }
@@ -84,31 +87,17 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
-public void update() {
+    public void update() {
+        stageManager.update(player);
+
         player.update(
-        currentStage.getPlatforms(),
-        currentStage.getBoxes()
-    );
-        currentStage.update(player);
+            stageManager.getCurrentStage().getPlatforms(),
+            stageManager.getCurrentStage().getBoxes()
+        );
 
-        if (currentStage.isCompleted()) {
-            if (currentStage instanceof Stage1) {
-                setCurrentStage(new Stage2());
-                player.setHasKey(false);
-                gameFinished = false;
-            } else {
-                gameFinished = true;
-            }
+        if (stageManager.isAllStagesCompleted()) {
+            gameFinished = true;
         }
-    }
-
-    public void setCurrentStage(Stage stage) {
-        this.currentStage = stage;
-        player.setX(stage.getPlayerSpawnX());
-        player.setY(stage.getPlayerSpawnY());
-        player.setHasKey(false);
-    public StageManager getStageManager() {
-        return stageManager;
     }
 
     @Override
@@ -117,11 +106,10 @@ public void update() {
         Graphics2D g2d = (Graphics2D) g;
 
         stageManager.draw(g2d);
-
         player.draw(g2d);
 
         if (gameFinished) {
-            g2d.setColor(java.awt.Color.WHITE);
+            g2d.setColor(Color.WHITE);
             g2d.drawString("Game Clear!", 40, 40);
         }
     }
