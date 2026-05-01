@@ -126,10 +126,34 @@ public class Box {
 
             // push only if coming from correct side
             if (player.isMovingRight() && player.getX() < x) {
-                x += 3;
+                pushHorizontally(3, boxes);
             }
             else if (player.isMovingLeft() && player.getX() > x) {
-                x -= 3;
+                pushHorizontally(-3, boxes);
+            }
+        }
+    }
+
+    /**
+     * Moves this box horizontally by dx, then carries along any boxes
+     * that are resting directly on top of this one (recursively, so the
+     * whole stack moves together).
+     */
+    private void pushHorizontally(double dx, List<Box> boxes) {
+        x += dx;
+
+        for (Box other : boxes) {
+            if (other == this) continue;
+
+            // "resting on top" means: horizontally overlapping AND
+            // the other box's bottom edge is sitting on (or within 2px of)
+            // this box's top edge.
+            boolean overlapX = other.x + other.width > x &&
+                               other.x < x + width;
+            boolean sittingOnTop = Math.abs((other.y + other.height) - y) <= 2;
+
+            if (overlapX && sittingOnTop) {
+                other.pushHorizontally(dx, boxes);
             }
         }
     }
