@@ -50,6 +50,9 @@ public class Platform {
             g.setColor(Color.BLACK);
             g.drawRect(x, y, width, height); // Outline
         }
+            // Collision box
+            g.setColor(Color.YELLOW);
+            g.drawRect(x, y, width, height);
     }
 
     // Getters

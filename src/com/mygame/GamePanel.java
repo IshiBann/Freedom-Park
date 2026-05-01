@@ -9,6 +9,9 @@ import java.awt.event.KeyEvent;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import com.mygame.entity.Player;
+import com.mygame.level.Stage;
+import com.mygame.level.Stage1;
+import com.mygame.level.Stage2;
 import com.mygame.level.StageManager;
 
 public class GamePanel extends JPanel implements Runnable {
@@ -81,15 +84,29 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
-    public void update() {
-        player.update(stageManager.getCurrentStage().getPlatforms());
-        stageManager.update(player);
+public void update() {
+        player.update(
+        currentStage.getPlatforms(),
+        currentStage.getBoxes()
+    );
+        currentStage.update(player);
 
-        if (stageManager.isAllStagesCompleted()) {
-            gameFinished = true;
+        if (currentStage.isCompleted()) {
+            if (currentStage instanceof Stage1) {
+                setCurrentStage(new Stage2());
+                player.setHasKey(false);
+                gameFinished = false;
+            } else {
+                gameFinished = true;
+            }
         }
     }
 
+    public void setCurrentStage(Stage stage) {
+        this.currentStage = stage;
+        player.setX(stage.getPlayerSpawnX());
+        player.setY(stage.getPlayerSpawnY());
+        player.setHasKey(false);
     public StageManager getStageManager() {
         return stageManager;
     }

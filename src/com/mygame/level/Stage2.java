@@ -1,36 +1,33 @@
 package com.mygame.level;
 
 import com.mygame.entity.Key;
+import com.mygame.entity.Box;
 import com.mygame.entity.Door;
 
 public class Stage2 extends Stage {
-    public Stage2() {
-        super();
-    }
 
-    @Override
-    public void loadStage() {
-        stageName = "Stage 2";
-        playerSpawnX = 50;
-        playerSpawnY = 667;
+	public Stage2() {
+		super();
+	}
 
-        // Using Stage 1 background for now as a placeholder
-        loadBackground("/assets/stage 1/Background.png");
+	@Override
+	public void loadStage() {
+		stageName = "Stage 2";
+		playerSpawnX = 100;
+		playerSpawnY = 617; // adjust as needed
 
-        // Create a different platform layout for Stage 2
-        platforms.add(new Platform(0,   750, 1200, 50)); // Ground
-        
-        // Zig-zag pattern
-        platforms.add(new Platform(100, 600, 200, 20));
-        platforms.add(new Platform(400, 500, 200, 20));
-        platforms.add(new Platform(700, 400, 200, 20));
-        platforms.add(new Platform(400, 300, 200, 20));
-        platforms.add(new Platform(100, 200, 200, 20));
-        
-        // Key at the top left
-        key = new Key(150, 160);
-        
-        // Door at the bottom right
-        door = new Door(1000, 667);
-    }
+		// Background (replace path with an actual asset when available)
+		loadBackground("/assets/stage 2/Background.png");
+
+		// Sample platforms (tweak positions/sizes for your level)
+		platforms.add(new Platform(0,   700, 1200, 50)); // Ground
+		platforms.add(new Platform(200,  550, 200, 20));
+		platforms.add(new Platform(500,  450, 200, 20));
+		platforms.add(new Platform(800,  350, 200, 20));
+
+		// Optional entities for this stage - uncomment and set positions when ready
+		// key = new Key(400, 420);
+		// door = new Door(1050, 304);
+		// boxes.add(new Box(600, 400));
+	}
 }
