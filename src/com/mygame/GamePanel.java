@@ -41,6 +41,11 @@ public class GamePanel extends JPanel implements Runnable {
             public void keyPressed(KeyEvent e) {
                 player.keyPressed(e);
 
+                if (e.getKeyCode() == KeyEvent.VK_R) {
+                    stageManager.resetCurrentStage(player);
+                    gameFinished = false;
+                }
+
                 if (e.getKeyCode() == KeyEvent.VK_F11) {
                     JFrame topFrame = (JFrame) javax.swing.SwingUtilities.getWindowAncestor(GamePanel.this);
                     if (topFrame != null) {
@@ -108,9 +113,28 @@ public class GamePanel extends JPanel implements Runnable {
         stageManager.draw(g2d);
         player.draw(g2d);
 
+        // HUD
+        g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 16));
+
+        // Stage name (top-left)
+        g2d.setColor(new Color(0, 0, 0, 120));
+        g2d.fillRoundRect(10, 10, 160, 28, 8, 8);
+        g2d.setColor(Color.WHITE);
+        g2d.drawString(stageManager.getCurrentStage().getStageName(), 20, 29);
+
+        // Reset hint (top-right)
+        g2d.setFont(new java.awt.Font("Arial", java.awt.Font.PLAIN, 14));
+        g2d.setColor(new Color(0, 0, 0, 120));
+        g2d.fillRoundRect(screenWidth - 110, 10, 100, 28, 8, 8);
+        g2d.setColor(new Color(255, 220, 80));
+        g2d.drawString("R \u2014 Reset", screenWidth - 100, 29);
+
         if (gameFinished) {
+            g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 48));
+            g2d.setColor(new Color(0, 0, 0, 160));
+            g2d.fillRoundRect(screenWidth / 2 - 160, screenHeight / 2 - 50, 320, 70, 16, 16);
             g2d.setColor(Color.WHITE);
-            g2d.drawString("Game Clear!", 40, 40);
+            g2d.drawString("Game Clear!", screenWidth / 2 - 140, screenHeight / 2 + 8);
         }
     }
 }

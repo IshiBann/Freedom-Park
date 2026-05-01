@@ -45,6 +45,19 @@ public abstract class Stage {
 
     public abstract void loadStage();
 
+    /**
+     * Resets this stage back to its initial state by clearing all entities
+     * and re-running loadStage(). Call this when the player wants to retry.
+     */
+    public void reset() {
+        platforms.clear();
+        boxes.clear();
+        key = null;
+        door = null;
+        completed = false;
+        loadStage();
+    }
+
     public void update(Player player) {
 
         for (Box box : boxes) {

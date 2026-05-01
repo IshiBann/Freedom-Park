@@ -65,4 +65,14 @@ public class StageManager {
     public int getCurrentStageIndex() {
         return currentStageIndex;
     }
+
+    /**
+     * Resets the current stage to its initial state and respawns the player.
+     */
+    public void resetCurrentStage(Player player) {
+        getCurrentStage().reset();
+        player.setX(getCurrentStage().getPlayerSpawnX());
+        player.setY(getCurrentStage().getPlayerSpawnY());
+        player.stopMovement();
+    }
 }
