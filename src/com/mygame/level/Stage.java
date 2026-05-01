@@ -37,7 +37,13 @@ public abstract class Stage {
         }
 
         if (door != null) {
+            boolean previouslyUnlocked = door.isUnlocked();
             door.update(player);
+            
+            if (!previouslyUnlocked && door.isUnlocked() && key != null) {
+                key.setUsed(true);
+            }
+
             if (door.canEnter(player)) {
                 completed = true;
             }
