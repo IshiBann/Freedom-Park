@@ -53,5 +53,8 @@ public class Key {
         if (image != null) {
             g.drawImage(image, x, y, 32, 32, null);
         }
+        // Collision box highlight (Green)
+        g.setColor(java.awt.Color.GREEN);
+        g.drawRect(x, y, 32, 32);
     }
 }

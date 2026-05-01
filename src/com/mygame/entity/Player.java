@@ -26,6 +26,7 @@ public class Player {
     private Animation walkAnim;
     private BufferedImage idleFrame;
     private BufferedImage jumpIcon;
+    List<Box> boxes;
 
     public Player(int startX, int startY) {
         this.x = startX;
@@ -137,77 +138,109 @@ public class Player {
         return movingLeft || movingRight;
     }
 
-    public void update(List<Platform> platforms) {
-        // Horizontal movement
-        if (movingLeft)  x -= speed;
-        if (movingRight) x += speed;
+public void update(List<Platform> platforms, List<Box> boxes) {
 
-        // Apply gravity
-        jumpVelocity += gravity;
-        int deltaY = (int) jumpVelocity;
+    // =====================
+    // HORIZONTAL MOVE
+    // =====================
+    if (movingLeft)  x -= speed;
+    if (movingRight) x += speed;
 
-        int pw = getSpriteWidth();
-        int ph = getSpriteHeight();
+    // =====================
+    // GRAVITY
+    // =====================
+    jumpVelocity += gravity;
 
-        // Store feet position BEFORE moving vertically
-        int prevFeet = y + ph;
+    int deltaY = (int) jumpVelocity;
 
-        // Move vertically
-        y += deltaY;
-        int newFeet = y + ph;
-        
-        boolean landed = false;
-        for (Platform platform : platforms) {
+    int pw = getSpriteWidth();
+    int ph = getSpriteHeight();
 
-    int platLeft   = platform.getX();
-    int platRight  = platform.getX() + platform.getWidth();
-    int platTop    = platform.getY();
-    int platBottom = platform.getY() + platform.getHeight();
+    int prevFeet = y + ph;
 
-    boolean overlapX = x + pw > platLeft && x < platRight;
-    boolean overlapY = y + ph > platTop && y < platBottom;
+    y += deltaY;
 
-    if (overlapX && overlapY) {
+    boolean landed = false;
 
-        // Falling onto platform
-        if (jumpVelocity >= 0 && prevFeet <= platTop) {
-            y = platTop - ph;
+    // =====================
+    // PLATFORM COLLISION
+    // =====================
+    for (Platform platform : platforms) {
+
+        int left = platform.getX();
+        int right = platform.getX() + platform.getWidth();
+        int top = platform.getY();
+        int bottom = platform.getY() + platform.getHeight();
+
+        boolean overlapX = x + pw > left && x < right;
+        boolean overlapY = y + ph > top && y < bottom;
+
+        if (overlapX && overlapY) {
+
+            if (jumpVelocity >= 0 && prevFeet <= top) {
+                y = top - ph;
+                jumpVelocity = 0;
+                isJumping = false;
+                landed = true;
+            }
+
+            else if (jumpVelocity < 0 && y >= bottom - 10) {
+                y = bottom;
+                jumpVelocity = 0;
+            }
+        }
+    }
+
+    // =====================
+    // BOX COLLISION (stand + block)
+    // =====================
+    for (Box box : boxes) {
+
+        int left = box.getX();
+        int right = box.getX() + box.getWidth();
+        int top = box.getY();
+
+        boolean overlapX = x + pw > left && x < right;
+
+        // land on box
+        if (overlapX &&
+            y + ph >= top &&
+            prevFeet <= top &&
+            jumpVelocity >= 0) {
+
+            y = top - ph;
             jumpVelocity = 0;
             isJumping = false;
             landed = true;
         }
+    }
 
-        // Hitting underside of platform
-        else if (jumpVelocity < 0 && y >= platBottom - 10) {
-            y = platBottom;
-            jumpVelocity = 0;
-        }
+    // =====================
+    // ANIMATION
+    // =====================
+    if (isMoving() && !isJumping && walkAnim != null) {
+        walkAnim.update();
+    } else if (walkAnim != null) {
+        walkAnim.reset();
     }
 }
-        
-        
-        // Correctly handle walking off a ledge mid-movement
-        if (!landed && jumpVelocity > gravity) {
-            isJumping = true;
-        }
 
-        // Animation
-        if (isMoving() && !isJumping && walkAnim != null) {
-            walkAnim.update();
-        } else if (walkAnim != null) {
-            walkAnim.reset();
-        }
-    }
+private int getSpriteWidth() {
+    return idleFrame != null ? idleFrame.getWidth() : 64;
+}
 
-    private int getSpriteWidth() {
-        return idleFrame != null ? idleFrame.getWidth() : 64;
-    }
+private int getSpriteHeight() {
+    return idleFrame != null ? idleFrame.getHeight() : 64;
+}
+public boolean hasKey() {
+return hasKey;
+}
+public boolean isMovingLeft() {
+    return movingLeft;
+}
 
-    private int getSpriteHeight() {
-        return idleFrame != null ? idleFrame.getHeight() : 64;
-    }
-    public boolean hasKey() {
-    return hasKey;
+public boolean isMovingRight() {
+    return movingRight;
 }
 
 public void setHasKey(boolean hasKey) {

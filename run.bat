@@ -11,10 +11,12 @@ src\com\mygame\GamePanel.java ^
 src\com\mygame\entity\Player.java ^
 src\com\mygame\entity\Key.java ^
 src\com\mygame\entity\Door.java ^
+src\com\mygame\entity\Box.java ^
 src\com\mygame\graphics\Animation.java ^
 src\com\mygame\level\Platform.java ^
 src\com\mygame\level\Stage.java ^
-src\com\mygame\level\Stage1.java
+src\com\mygame\level\Stage1.java ^
+src\com\mygame\level\Stage2.java 
 if %errorlevel% neq 0 (
     echo Compilation FAILED.
     pause

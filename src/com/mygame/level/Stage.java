@@ -5,39 +5,60 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
 import javax.imageio.ImageIO;
 
-import com.mygame.entity.Player;
+import com.mygame.entity.Box;
 import com.mygame.entity.Door;
 import com.mygame.entity.Key;
+import com.mygame.entity.Player;
 
 public abstract class Stage {
+
     protected List<Platform> platforms;
+    protected List<Box> boxes;
+
     protected BufferedImage background;
+
     protected int playerSpawnX;
     protected int playerSpawnY;
+
     protected String stageName;
+
     protected Key key;
     protected Door door;
+
     protected boolean completed;
-    
+
     public Stage() {
+
         platforms = new ArrayList<>();
+        boxes = new ArrayList<>();
+
         playerSpawnX = 100;
         playerSpawnY = 250;
+
         completed = false;
+
         loadStage();
     }
 
     public abstract void loadStage();
 
     public void update(Player player) {
+
+        for (Box box : boxes) {
+            box.update(player, platforms, boxes);
+        }
+
         if (key != null) {
             key.update(player);
         }
 
         if (door != null) {
+
             door.update(player);
+
             if (door.canEnter(player)) {
                 completed = true;
             }
@@ -45,12 +66,22 @@ public abstract class Stage {
     }
 
     public void draw(Graphics g) {
+
+        java.awt.Graphics2D g2 = (java.awt.Graphics2D) g;
+
         if (background != null) {
-            g.drawImage(background, 0, 0, null);
+            java.awt.Composite oldComposite = g2.getComposite();
+            g2.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 0.75f));
+            g2.drawImage(background, 0, 0, null);
+            g2.setComposite(oldComposite);
         }
 
         for (Platform platform : platforms) {
             platform.draw(g);
+        }
+
+        for (Box box : boxes) {
+            box.draw(g);
         }
 
         if (key != null) {
@@ -63,17 +94,29 @@ public abstract class Stage {
     }
 
     protected void loadBackground(String backgroundPath) {
+
         try {
-            background = ImageIO.read(Stage.class.getResourceAsStream(backgroundPath));
+
+            background = ImageIO.read(
+                Stage.class.getResourceAsStream(backgroundPath)
+            );
+
         } catch (IOException e) {
-            System.err.println("Could not load background: " + backgroundPath);
+
+            System.err.println(
+                "Could not load background: " + backgroundPath
+            );
+
             background = null;
         }
     }
 
-    // Getters
     public List<Platform> getPlatforms() {
         return platforms;
+    }
+
+    public List<Box> getBoxes() {
+        return boxes;
     }
 
     public BufferedImage getBackground() {

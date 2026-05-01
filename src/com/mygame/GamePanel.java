@@ -11,6 +11,7 @@ import javax.swing.JPanel;
 import com.mygame.entity.Player;
 import com.mygame.level.Stage;
 import com.mygame.level.Stage1;
+import com.mygame.level.Stage2;
 
 public class GamePanel extends JPanel implements Runnable {
     public final int screenWidth = 1200;
@@ -82,12 +83,21 @@ public class GamePanel extends JPanel implements Runnable {
         }
     }
 
-    public void update() {
-        player.update(currentStage.getPlatforms());
+public void update() {
+        player.update(
+        currentStage.getPlatforms(),
+        currentStage.getBoxes()
+    );
         currentStage.update(player);
 
         if (currentStage.isCompleted()) {
-            gameFinished = true;
+            if (currentStage instanceof Stage1) {
+                setCurrentStage(new Stage2());
+                player.setHasKey(false);
+                gameFinished = false;
+            } else {
+                gameFinished = true;
+            }
         }
 }
     public Stage getCurrentStage() {
@@ -98,6 +108,7 @@ public class GamePanel extends JPanel implements Runnable {
         this.currentStage = stage;
         player.setX(stage.getPlayerSpawnX());
         player.setY(stage.getPlayerSpawnY());
+        player.setHasKey(false);
     }
 
     @Override
