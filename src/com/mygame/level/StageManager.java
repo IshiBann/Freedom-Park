@@ -66,6 +66,13 @@ public class StageManager {
         return currentStageIndex;
     }
 
+    public void setCurrentStageIndex(int index) {
+        if (this.currentStageIndex != index && index < stages.size()) {
+            this.currentStageIndex = index;
+            // No player available here to reset, usually done by server/client separately
+        }
+    }
+
     /**
      * Resets the current stage to its initial state and respawns the player.
      */

@@ -13,6 +13,7 @@ import com.mygame.graphics.Animation;
 import com.mygame.level.Platform;
 
 public class Player {
+    private int playerID = -1;
     private int x = 100;
     private int y = 686;
     private int speed = 3;
@@ -23,6 +24,7 @@ public class Player {
     private final double gravity = 0.6;
     private final double jumpPower = -15.0;
     private boolean hasKey = false;
+    private boolean jumpRequested = false;
     private Animation walkAnim;
     private BufferedImage idleFrame;
     private BufferedImage jumpIcon;
@@ -32,12 +34,22 @@ public class Player {
         this.x = startX;
         this.y = startY;
         loadAnimations();
-        System.out.println(getSpriteHeight());
+    }
+
+    public Player(int playerID, int startX, int startY) {
+        this(startX, startY);
+        this.playerID = playerID;
+    }
+
+    public boolean consumeJumpRequest() {
+        boolean req = jumpRequested;
+        jumpRequested = false;
+        return req;
     }
 
     public void draw(Graphics g) {
         BufferedImage frame = null;
-        
+
         if (isJumping && jumpIcon != null) {
             frame = jumpIcon;
         } else if (isMoving() && walkAnim != null) {
@@ -119,6 +131,7 @@ public class Player {
             case KeyEvent.VK_A -> { movingLeft = true; facingLeft = true; }
             case KeyEvent.VK_D -> { movingRight = true; facingLeft = false; }
             case KeyEvent.VK_SPACE -> {
+                jumpRequested = true;
                 if (!isJumping) {
                     isJumping = true;
                     jumpVelocity = jumpPower;
@@ -138,7 +151,7 @@ public class Player {
         return movingLeft || movingRight;
     }
 
-public void update(List<Platform> platforms, List<Box> boxes) {
+public void update(List<Platform> platforms, List<Box> boxes, List<Player> players) {
 
     // =====================
     // HORIZONTAL MOVE
@@ -216,8 +229,45 @@ public void update(List<Platform> platforms, List<Box> boxes) {
     }
 
     // =====================
+    // PLAYER COLLISION (Pico Park Style)
+    // =====================
+    for (Player other : players) {
+        if (other == this) continue;
+
+        int left = other.getX();
+        int right = other.getX() + other.getWidth();
+        int top = other.getY();
+        int bottom = other.getY() + other.getHeight();
+
+        boolean overlapX = x + pw > left && x < right;
+        boolean overlapY = y + ph > top && y < bottom;
+
+        if (overlapX && overlapY) {
+            // Head stacking
+            if (jumpVelocity >= 0 && prevFeet <= top) {
+                y = top - ph;
+                jumpVelocity = 0;
+                isJumping = false;
+                landed = true;
+            }
+            // Horizontal pushback (only if not jumping through from below)
+            else if (y + ph > top + 10) {
+                if (x + pw/2 < left + (right-left)/2) {
+                    x = left - pw;
+                } else {
+                    x = right;
+                }
+            }
+        }
+    }
+
+    // =====================
     // ANIMATION
     // =====================
+    updateAnimation();
+}
+
+public void updateAnimation() {
     if (isMoving() && !isJumping && walkAnim != null) {
         walkAnim.update();
     } else if (walkAnim != null) {
@@ -259,6 +309,36 @@ public int getHeight() {
     public int getY() { return y; }
     public void setX(int x) { this.x = x; }
     public void setY(int y) { this.y = y; }
+
+    public void setMovingLeft(boolean movingLeft) {
+        this.movingLeft = movingLeft;
+        if (movingLeft) facingLeft = true;
+    }
+
+    public void setMovingRight(boolean movingRight) {
+        this.movingRight = movingRight;
+        if (movingRight) facingLeft = false;
+    }
+
+    public void jump() {
+        if (!isJumping) {
+            isJumping = true;
+            jumpVelocity = jumpPower;
+        }
+    }
+
+    public int getPlayerID() { return playerID; }
+    public void setPlayerID(int playerID) { this.playerID = playerID; }
+    public boolean isFacingLeft() { return facingLeft; }
+    public void setFacingLeft(boolean facingLeft) { this.facingLeft = facingLeft; }
+
+    public boolean isJumping() {
+        return isJumping;
+    }
+
+    public void setIsJumping(boolean isJumping) {
+        this.isJumping = isJumping;
+    }
 
     public void stopMovement() {
         movingLeft = false;
