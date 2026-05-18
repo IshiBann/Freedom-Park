@@ -12,7 +12,7 @@ src\com\mygame\net\GameServer.java ^
 src\com\mygame\net\GameClient.java ^
 src\com\mygame\entity\*.java ^
 src\com\mygame\graphics\*.java ^
-src\com\mygame\level\StageManager.java ^
+src\com\mygame\level\*.java ^
 src\com\mygame\MenuScreen.java
 if %errorlevel% neq 0 (
     echo Compilation FAILED.

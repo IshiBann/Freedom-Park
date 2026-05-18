@@ -27,8 +27,7 @@ public class Stage3 extends Stage {
         boxes.add(new Box(220, 512));
         boxes.add(new Box(760, 332));
 
-        key = new Key(15
-            , 200);
-        door = new Door(1080,  604);
+        key = new Key(15, 200);
+        door = new Door(1080, 604);
     }
 }
