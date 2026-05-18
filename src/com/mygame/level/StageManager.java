@@ -58,19 +58,23 @@ public class StageManager {
         return stages.get(currentStageIndex);
     }
 
+    public void setCurrentStageIndex(int stageIndex) {
+        if (stageIndex < 0) {
+            currentStageIndex = 0;
+        } else if (stageIndex >= stages.size()) {
+            currentStageIndex = stages.size() - 1;
+        } else {
+            currentStageIndex = stageIndex;
+        }
+        allStagesCompleted = false;
+    }
+
     public boolean isAllStagesCompleted() {
         return allStagesCompleted;
     }
     
     public int getCurrentStageIndex() {
         return currentStageIndex;
-    }
-
-    public void setCurrentStageIndex(int index) {
-        if (this.currentStageIndex != index && index < stages.size()) {
-            this.currentStageIndex = index;
-            // No player available here to reset, usually done by server/client separately
-        }
     }
 
     /**

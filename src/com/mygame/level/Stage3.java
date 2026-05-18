@@ -16,7 +16,7 @@ public class Stage3 extends Stage {
         playerSpawnX = 100;
         playerSpawnY = 617;
 
-        loadBackground("/assets/stage 2/Background.png");
+        loadBackground("/assets/stage 3/Background.png");
 
         platforms.add(new Platform(0,   700, 1200, 50));
         platforms.add(new Platform(180, 560, 180, 20));
@@ -27,7 +27,8 @@ public class Stage3 extends Stage {
         boxes.add(new Box(220, 512));
         boxes.add(new Box(760, 332));
 
-        key = new Key(15, 200);
-        door = new Door(1080, 604);
+        key = new Key(15
+            , 200);
+        door = new Door(1080,  604);
     }
 }
