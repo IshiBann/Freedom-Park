@@ -5,22 +5,14 @@ if not exist bin mkdir bin
 
 xcopy /E /I /Y src\assets bin\assets >nul
 
-javac -d bin ^
+javac -d bin -sourcepath src ^
 src\com\mygame\Main.java ^
 src\com\mygame\GamePanel.java ^
-src\com\mygame\entity\Player.java ^
-src\com\mygame\entity\Key.java ^
-src\com\mygame\entity\Door.java ^
-src\com\mygame\entity\Box.java ^
-src\com\mygame\graphics\Animation.java ^
-src\com\mygame\level\Platform.java ^
-src\com\mygame\level\Stage.java ^
-src\com\mygame\level\Stage1.java ^
-src\com\mygame\level\Stage2.java ^
-src\com\mygame\level\Stage3.java ^
-src\com\mygame\level\Stage4.java ^
-src\com\mygame\level\Stage5.java ^
-src\com\mygame\level\StageManager.java ^
+src\com\mygame\net\GameServer.java ^
+src\com\mygame\net\GameClient.java ^
+src\com\mygame\entity\*.java ^
+src\com\mygame\graphics\*.java ^
+src\com\mygame\level\*.java ^
 src\com\mygame\MenuScreen.java
 if %errorlevel% neq 0 (
     echo Compilation FAILED.
