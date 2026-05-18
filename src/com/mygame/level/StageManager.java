@@ -58,6 +58,17 @@ public class StageManager {
         return stages.get(currentStageIndex);
     }
 
+    public void setCurrentStageIndex(int stageIndex) {
+        if (stageIndex < 0) {
+            currentStageIndex = 0;
+        } else if (stageIndex >= stages.size()) {
+            currentStageIndex = stages.size() - 1;
+        } else {
+            currentStageIndex = stageIndex;
+        }
+        allStagesCompleted = false;
+    }
+
     public boolean isAllStagesCompleted() {
         return allStagesCompleted;
     }

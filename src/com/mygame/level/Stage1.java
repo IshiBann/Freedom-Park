@@ -1,7 +1,6 @@
 package com.mygame.level;
 
 import com.mygame.entity.Key;
-import com.mygame.entity.Box;
 import com.mygame.entity.Door;
 
 public class Stage1 extends Stage {

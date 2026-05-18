@@ -20,7 +20,8 @@ src\com\mygame\level\Stage2.java ^
 src\com\mygame\level\Stage3.java ^
 src\com\mygame\level\Stage4.java ^
 src\com\mygame\level\Stage5.java ^
-src\com\mygame\level\StageManager.java
+src\com\mygame\level\StageManager.java ^
+src\com\mygame\MenuScreen.java
 if %errorlevel% neq 0 (
     echo Compilation FAILED.
     pause

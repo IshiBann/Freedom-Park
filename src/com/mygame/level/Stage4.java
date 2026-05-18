@@ -16,7 +16,7 @@ public class Stage4 extends Stage {
         playerSpawnX = 100;
         playerSpawnY = 617;
 
-        loadBackground("/assets/stage 2/Background.png");
+        loadBackground("/assets/stage 4/Background.png");
 
         platforms.add(new Platform(0,   700, 1200, 50));
         platforms.add(new Platform(120, 620, 160, 20));

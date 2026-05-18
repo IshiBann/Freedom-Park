@@ -67,7 +67,22 @@ public class GamePanel extends JPanel implements Runnable {
         });
     }
 
+    public void startGameAtStage(int stageIndex) {
+        stageManager.setCurrentStageIndex(stageIndex);
+        player = new Player(
+            stageManager.getCurrentStage().getPlayerSpawnX(),
+            stageManager.getCurrentStage().getPlayerSpawnY()
+        );
+        stageManager.resetCurrentStage(player);
+        gameFinished = false;
+        startGameThread();
+        requestFocusInWindow();
+    }
+
     public void startGameThread() {
+        if (gameThread != null) {
+            return;
+        }
         gameThread = new Thread(this);
         gameThread.start();
     }
