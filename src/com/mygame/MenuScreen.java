@@ -44,7 +44,16 @@ public class MenuScreen extends JPanel {
     private Runnable hostGameAction;
     private java.util.function.Consumer<String> joinGameAction;
     private java.util.function.IntConsumer stageSelectedAction;
-    private String joinAddress = "localhost";
+    private String joinAddress = "";
+    private boolean localTestMode = false;
+
+    public void setLocalTestMode(boolean enabled) {
+        localTestMode = enabled;
+        GamePanel.setAllowLocalJoin(enabled);
+        if (enabled && joinAddress.trim().isEmpty()) {
+            joinAddress = "127.0.0.1:9876";
+        }
+    }
 
     // ─── Animation ───────────────────────────────────────────────────────────
     private long   tickCount    = 0;
@@ -259,11 +268,20 @@ public class MenuScreen extends JPanel {
         }
 
         if (menuState == MenuState.MULTIPLAYER_SELECT) {
+            if (localTestCheckboxAt(p)) {
+                toggleLocalTestMode();
+                return;
+            }
             int idx = menuButtonAt(p);
             if (idx == 0) {
+                applyLocalTestMode();
                 if (hostGameAction != null) hostGameAction.run();
             } else if (idx == 1) {
+                applyLocalTestMode();
                 menuState = MenuState.JOIN_INPUT;
+                if (localTestMode && joinAddress.isEmpty()) {
+                    joinAddress = "127.0.0.1:9876";
+                }
                 repaint();
             } else if (idx == 2) {
                 menuState = MenuState.MODE_SELECT;
@@ -273,10 +291,16 @@ public class MenuScreen extends JPanel {
         }
 
         if (menuState == MenuState.JOIN_INPUT) {
+            if (localTestCheckboxAt(p)) {
+                toggleLocalTestMode();
+                return;
+            }
             int idx = menuButtonAt(p);
             if (idx == 0) {
-                if (joinGameAction != null && !joinAddress.trim().isEmpty()) {
-                    joinGameAction.accept(joinAddress.trim());
+                applyLocalTestMode();
+                String address = getJoinAddressForConnect();
+                if (joinGameAction != null && !address.isEmpty()) {
+                    joinGameAction.accept(address);
                 }
             } else if (idx == 1) {
                 menuState = MenuState.MULTIPLAYER_SELECT;
@@ -301,10 +325,69 @@ public class MenuScreen extends JPanel {
         }
     }
 
+    private void applyLocalTestMode() {
+        GamePanel.setAllowLocalJoin(localTestMode);
+    }
+
+    private void toggleLocalTestMode() {
+        localTestMode = !localTestMode;
+        applyLocalTestMode();
+        if (localTestMode && joinAddress.trim().isEmpty()) {
+            joinAddress = "127.0.0.1:9876";
+        }
+        repaint();
+    }
+
+    private String getJoinAddressForConnect() {
+        if (!joinAddress.trim().isEmpty()) {
+            return joinAddress.trim();
+        }
+        if (localTestMode) {
+            return "127.0.0.1:9876";
+        }
+        return "";
+    }
+
+    private Rectangle getLocalTestCheckboxRect(int panelX, int panelY, int panelW, int panelH) {
+        int w = 280;
+        int h = 22;
+        int x = panelX + (panelW - w) / 2;
+        int y = panelY + panelH - 40;
+        return new Rectangle(x, y, w, h);
+    }
+
+    private boolean localTestCheckboxAt(Point p) {
+        if (menuState == MenuState.MULTIPLAYER_SELECT) {
+            int panelX = getWidth() / 2 - 260;
+            int panelY = getHeight() / 2 - 160;
+            return getLocalTestCheckboxRect(panelX, panelY, 520, 300).contains(p);
+        }
+        if (menuState == MenuState.JOIN_INPUT) {
+            int panelX = getWidth() / 2 - 260;
+            int panelY = getHeight() / 2 - 190;
+            return getLocalTestCheckboxRect(panelX, panelY, 520, 360).contains(p);
+        }
+        return false;
+    }
+
+    private void drawLocalTestCheckbox(Graphics2D g2, Rectangle area) {
+        int box = 16;
+        g2.setColor(localTestMode ? GOLD : new Color(255, 255, 255, 80));
+        g2.drawRect(area.x, area.y + 2, box, box);
+        if (localTestMode) {
+            g2.fillRect(area.x + 3, area.y + 5, box - 6, box - 6);
+        }
+        g2.setFont(tinyFont);
+        g2.setColor(localTestMode ? GOLD : GOLD_DIM);
+        g2.drawString("SAME PC TEST (two terminals)", area.x + box + 10, area.y + 15);
+    }
+
     private void handleJoinInputKey(KeyEvent e) {
         if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-            if (joinGameAction != null && !joinAddress.trim().isEmpty()) {
-                joinGameAction.accept(joinAddress.trim());
+            applyLocalTestMode();
+            String address = getJoinAddressForConnect();
+            if (joinGameAction != null && !address.isEmpty()) {
+                joinGameAction.accept(address);
             }
             return;
         }
@@ -393,7 +476,14 @@ public class MenuScreen extends JPanel {
     }
 
     private int menuButtonAt(Point p) {
-        Rectangle[] rects = getMenuButtonRects();
+        Rectangle[] rects;
+        if (menuState == MenuState.MULTIPLAYER_SELECT) {
+            rects = getMultiplayerButtonRects();
+        } else if (menuState == MenuState.JOIN_INPUT) {
+            rects = getJoinInputButtonRects();
+        } else {
+            rects = getMenuButtonRects();
+        }
         for (int i = 0; i < rects.length; i++) {
             if (rects[i].contains(p)) return i;
         }
@@ -591,21 +681,81 @@ public class MenuScreen extends JPanel {
     }
 
     private void drawMultiplayerSelect(Graphics2D g2, int W, int H) {
-        drawMenuPanel(g2, W, H, "MULTIPLAYER", new String[] {
-            "CREATE GAME",
-            "JOIN GAME",
-            "BACK"
-        });
+        int panelW = 520;
+        int panelH = 300;
+        int panelX = W / 2 - 260;
+        int panelY = H / 2 - 160;
+
+        g2.setColor(PANEL_BG);
+        g2.fillRoundRect(panelX, panelY, panelW, panelH, 10, 10);
+        g2.setColor(PANEL_BORDER);
+        g2.drawRoundRect(panelX, panelY, panelW, panelH, 10, 10);
+
+        g2.setFont(pixelFont.deriveFont(Font.BOLD, 14f));
+        g2.setColor(GOLD);
+        FontMetrics fm = g2.getFontMetrics();
+        String title = "MULTIPLAYER";
+        g2.drawString(title, panelX + (panelW - fm.stringWidth(title)) / 2, panelY + 34);
+
+        Rectangle[] buttons = getMenuButtonRects();
+        String[] labels = { "CREATE GAME", "JOIN GAME", "BACK" };
+        for (int i = 0; i < labels.length; i++) {
+            drawMenuButton(g2, buttons[i], labels[i], i == hoveredMenuButtonIndex);
+        }
+
+        drawLocalTestCheckbox(g2, getLocalTestCheckboxRect(panelX, panelY, panelW, panelH));
+    }
+
+    private Rectangle[] getMultiplayerButtonRects() {
+        return getMenuButtonRects();
+    }
+
+    private Rectangle[] getJoinInputButtonRects() {
+        int W = getWidth();
+        int H = getHeight();
+        int bw = Math.min(340, W - 120);
+        int bh = 52;
+        int gap = 16;
+        int panelY = H / 2 - 190;
+        int buttonsY = panelY + 200;
+        int x = (W - bw) / 2;
+        return new Rectangle[] {
+            new Rectangle(x, buttonsY, bw, bh),
+            new Rectangle(x, buttonsY + bh + gap, bw, bh)
+        };
+    }
+
+    private Rectangle getJoinInputFieldRect() {
+        int W = getWidth();
+        int panelX = W / 2 - 260;
+        int panelY = getHeight() / 2 - 190;
+        int fieldW = 520 - 80;
+        return new Rectangle(panelX + 40, panelY + 88, fieldW, 44);
     }
 
     private void drawJoinInput(Graphics2D g2, int W, int H) {
-        Rectangle[] rects = getMenuButtonRects();
-        Rectangle field = new Rectangle(W / 2 - 210, H / 2 - 66, 420, 44);
+        int panelW = 520;
+        int panelH = 360;
+        int panelX = (W - panelW) / 2;
+        int panelY = H / 2 - 190;
 
-        drawMenuPanel(g2, W, H, "JOIN GAME", new String[] {
-            "CONNECT",
-            "BACK"
-        });
+        g2.setColor(PANEL_BG);
+        g2.fillRoundRect(panelX, panelY, panelW, panelH, 10, 10);
+        g2.setColor(PANEL_BORDER);
+        g2.drawRoundRect(panelX, panelY, panelW, panelH, 10, 10);
+
+        g2.setFont(pixelFont.deriveFont(Font.BOLD, 14f));
+        g2.setColor(GOLD);
+        FontMetrics fm = g2.getFontMetrics();
+        String title = "JOIN GAME";
+        g2.drawString(title, panelX + (panelW - fm.stringWidth(title)) / 2, panelY + 34);
+
+        g2.setFont(tinyFont);
+        g2.setColor(GOLD_DIM);
+        String fieldLabel = "SERVER ADDRESS";
+        fm = g2.getFontMetrics();
+        Rectangle field = getJoinInputFieldRect();
+        g2.drawString(fieldLabel, field.x, field.y - 8);
 
         g2.setFont(pixelFont.deriveFont(Font.BOLD, 12f));
         g2.setColor(new Color(0, 0, 0, 150));
@@ -616,8 +766,20 @@ public class MenuScreen extends JPanel {
         g2.drawString(joinAddress, field.x + 14, field.y + 28);
 
         g2.setFont(tinyFont);
-        g2.setColor(new Color(255, 215, 0, 180));
-        g2.drawString("TYPE SERVER IP AND PRESS ENTER", field.x, field.y - 10);
+        g2.setColor(new Color(255, 215, 0, 160));
+        String hint = localTestMode
+            ? "Connect to 127.0.0.1:9876 on this PC"
+            : "Enable SAME PC TEST below, or use host LAN IP";
+        fm = g2.getFontMetrics();
+        g2.drawString(hint, panelX + (panelW - fm.stringWidth(hint)) / 2, field.y + field.height + 22);
+
+        drawLocalTestCheckbox(g2, getLocalTestCheckboxRect(panelX, panelY, panelW, panelH));
+
+        Rectangle[] buttons = getJoinInputButtonRects();
+        String[] labels = { "CONNECT", "BACK" };
+        for (int i = 0; i < labels.length; i++) {
+            drawMenuButton(g2, buttons[i], labels[i], i == hoveredMenuButtonIndex);
+        }
     }
 
     private void drawMenuPanel(Graphics2D g2, int W, int H, String title, String[] labels) {

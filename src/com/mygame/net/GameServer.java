@@ -4,9 +4,13 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.mygame.GamePanel;
 import com.mygame.entity.Player;
@@ -19,17 +23,39 @@ public class GameServer extends Thread {
     private int port = 9876;
     private volatile boolean running = true;
     private int lobbyStageIndex = 0;
+    private final ConcurrentHashMap<Integer, InputSnapshot> latestInputs = new ConcurrentHashMap<>();
+
+    private static final class InputSnapshot {
+        volatile boolean left;
+        volatile boolean right;
+        volatile boolean jump;
+    }
 
     public GameServer(GamePanel game) {
         this.game = game;
         try {
             this.socket = new DatagramSocket(port);
         } catch (SocketException e) {
-            e.printStackTrace();
+            System.err.println("Port " + port + " unavailable, attempting ephemeral port.");
+            try {
+                this.socket = new DatagramSocket(0);
+                this.port = this.socket.getLocalPort();
+                System.out.println("Server bound to ephemeral port " + this.port);
+            } catch (SocketException ex) {
+                ex.printStackTrace();
+            }
         }
     }
 
+    public boolean isBound() {
+        return socket != null && !socket.isClosed();
+    }
+
     public void run() {
+        if (socket == null) {
+            System.err.println("Server socket not available; aborting server thread.");
+            return;
+        }
         System.out.println("Server started on port " + port);
         while (running) {
             byte[] data = new byte[1024];
@@ -72,9 +98,22 @@ public class GameServer extends Thread {
     }
 
     private void handleJoin(InetAddress address, int port) {
+        if (!game.isAllowLocalJoin() && isSameMachine(address)) {
+            sendData("DENIED,Cannot join your own game from this computer.".getBytes(), address, port);
+            return;
+        }
+
+        for (ClientInfo existing : clients) {
+            if (existing.address.equals(address) && existing.port == port) {
+                sendData(("JOINED," + existing.playerID).getBytes(), address, port);
+                sendLobbyState(address, port);
+                return;
+            }
+        }
+
         if (clients.size() >= 3) return; // Host is 0, max 3 additional clients (total 4)
 
-        int playerID = clients.size() + 1; // Clients get ID 1, 2, 3
+        int playerID = clients.size() + 1; // Clients get ID 1, 2, 3 (display: Player 2–4)
         clients.add(new ClientInfo(address, port, playerID));
         
         // Add player to the server's authoritative game world (Host's screen)
@@ -90,24 +129,40 @@ public class GameServer extends Thread {
         
         System.out.println("Client joined: " + address.getHostAddress() + ":" + port + " as Player " + playerID);
         
-        // Send confirmation to client
         sendData(("JOINED," + playerID).getBytes(), address, port);
-        sendData(("LOBBY," + lobbyStageIndex + "," + (clients.size() + 1)).getBytes(), address, port);
+        broadcastLobbyState();
     }
 
     private void handleInput(String[] tokens) {
         int id = Integer.parseInt(tokens[1]);
-        boolean left = tokens[2].equals("1");
-        boolean right = tokens[3].equals("1");
-        boolean jump = tokens[4].equals("1");
+        InputSnapshot snap = latestInputs.computeIfAbsent(id, k -> new InputSnapshot());
+        snap.left = tokens[2].equals("1");
+        snap.right = tokens[3].equals("1");
+        if (tokens[4].equals("1")) {
+            snap.jump = true;
+        }
+    }
 
-        // Find player and apply input
-        for (Player p : game.getPlayers()) {
-            if (p.getPlayerID() == id) {
-                p.setMovingLeft(left);
-                p.setMovingRight(right);
-                if (jump) p.jump();
-                break;
+    /** Apply latest client inputs on the game thread before physics (host is id 0, keyboard only). */
+    public void applyNetworkInputs() {
+        synchronized (game.getPlayers()) {
+            for (Player p : game.getPlayers()) {
+                int id = p.getPlayerID();
+                if (id == 0) {
+                    continue;
+                }
+                InputSnapshot snap = latestInputs.get(id);
+                if (snap != null) {
+                    p.setMovingLeft(snap.left);
+                    p.setMovingRight(snap.right);
+                    if (snap.jump) {
+                        p.jump();
+                        snap.jump = false;
+                    }
+                } else {
+                    p.setMovingLeft(false);
+                    p.setMovingRight(false);
+                }
             }
         }
     }
@@ -122,9 +177,45 @@ public class GameServer extends Thread {
         broadcast(("START," + stageIndex).getBytes());
     }
 
+    private byte[] buildLobbyPacket() {
+        synchronized (game.getPlayers()) {
+            game.setLobbyPlayerCount(game.getPlayers().size());
+            StringBuilder msg = new StringBuilder();
+            msg.append("LOBBY,").append(lobbyStageIndex).append(",").append(game.getPlayers().size());
+            for (Player p : game.getPlayers()) {
+                msg.append(",").append(p.getPlayerID());
+            }
+            return msg.toString().getBytes();
+        }
+    }
+
+    private void sendLobbyState(InetAddress address, int port) {
+        sendData(buildLobbyPacket(), address, port);
+    }
+
     private void broadcastLobbyState() {
-        game.setLobbyPlayerCount(clients.size() + 1);
-        broadcast(("LOBBY," + lobbyStageIndex + "," + (clients.size() + 1)).getBytes());
+        byte[] packet = buildLobbyPacket();
+        broadcast(packet);
+    }
+
+    private boolean isSameMachine(InetAddress clientAddr) {
+        if (clientAddr.isLoopbackAddress()) {
+            return true;
+        }
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface ni = interfaces.nextElement();
+                for (InetAddress addr : Collections.list(ni.getInetAddresses())) {
+                    if (addr.equals(clientAddr)) {
+                        return true;
+                    }
+                }
+            }
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     public void sendData(byte[] data, InetAddress address, int port) {

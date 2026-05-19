@@ -1,15 +1,19 @@
 package com.mygame;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.FontMetrics;
 import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
@@ -33,8 +37,31 @@ public class GamePanel extends JPanel implements Runnable {
     private GameClient client;
     private Runnable homeAction;
     private Runnable gameStartAction;
+    private Runnable joinDeniedAction;
+    private String lastJoinError = "";
     private int lobbyStageIndex = 0;
     private int lobbyPlayerCount = 1;
+
+    /** When true, allows joining localhost / same PC (for dev testing with two terminals). */
+    private static boolean allowLocalJoin = false;
+
+    private static final class JoinTarget {
+        final String host;
+        final int port;
+
+        JoinTarget(String host, int port) {
+            this.host = host;
+            this.port = port;
+        }
+    }
+
+    public static void setAllowLocalJoin(boolean allow) {
+        allowLocalJoin = allow;
+    }
+
+    public static boolean isAllowLocalJoin() {
+        return allowLocalJoin;
+    }
 
     public GamePanel() {
         this.setPreferredSize(new Dimension(screenWidth, screenHeight));
@@ -45,12 +72,11 @@ public class GamePanel extends JPanel implements Runnable {
         stageManager = new StageManager();
         players = new java.util.ArrayList<>();
 
-        // Initialize local player for initial testing (will be replaced by network join)
         Player localPlayer = new Player(
+            0,
             stageManager.getCurrentStage().getPlayerSpawnX(),
             stageManager.getCurrentStage().getPlayerSpawnY()
         );
-        localPlayer.setPlayerID(0);
         players.add(localPlayer);
         localPlayerID = 0;
 
@@ -116,6 +142,16 @@ public class GamePanel extends JPanel implements Runnable {
                 }
             }
         });
+
+        addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent e) {
+                Player p = getLocalPlayer();
+                if (p != null) {
+                    p.stopMovement();
+                }
+            }
+        });
     }
 
     public Player getLocalPlayer() {
@@ -133,12 +169,28 @@ public class GamePanel extends JPanel implements Runnable {
         this.localPlayerID = id;
     }
 
+    public int getLocalPlayerID() {
+        return localPlayerID;
+    }
+
     public void setHomeAction(Runnable action) {
         this.homeAction = action;
     }
 
     public void setGameStartAction(Runnable action) {
         this.gameStartAction = action;
+    }
+
+    public void setJoinDeniedAction(Runnable action) {
+        this.joinDeniedAction = action;
+    }
+
+    public String getLastJoinError() {
+        return lastJoinError;
+    }
+
+    public boolean isHosting() {
+        return server != null;
     }
 
     public void setLobbyStageIndex(int stageIndex) {
@@ -174,23 +226,161 @@ public class GamePanel extends JPanel implements Runnable {
                 stageManager.getCurrentStage().getPlayerSpawnX(),
                 stageManager.getCurrentStage().getPlayerSpawnY()
             );
-            localPlayer.setPlayerID(id);
             players.add(localPlayer);
             localPlayerID = id;
         }
     }
 
-    public void initServer() {
-        server = new GameServer(this);
-        server.start();
+    /** Remote lobby occupant (host or other clients) for the waiting-room UI. */
+    public void ensureLobbyPlayer(int id) {
+        if (id == localPlayerID) {
+            return;
+        }
+        synchronized (players) {
+            for (Player p : players) {
+                if (p.getPlayerID() == id) {
+                    return;
+                }
+            }
+            players.add(new Player(
+                id,
+                stageManager.getCurrentStage().getPlayerSpawnX(),
+                stageManager.getCurrentStage().getPlayerSpawnY()
+            ));
+        }
     }
 
-    public void initClient(String ip) {
+    public void syncLobbyRoster(int[] occupiedIds) {
+        if (occupiedIds == null) {
+            return;
+        }
+        for (int id : occupiedIds) {
+            if (id == localPlayerID) {
+                ensureLocalPlayer(id);
+            } else {
+                ensureLobbyPlayer(id);
+            }
+        }
+    }
+
+    /** Ensures the host occupies player slot 1 (internal id 0) in the ready room. */
+    public void ensureHostInLobby() {
+        ensureLocalPlayer(0);
+        setLobbyPlayerCount(1);
+    }
+
+    public void initServer() {
+        ensureHostInLobby();
+        server = new GameServer(this);
+        if (server != null && server.isBound()) {
+            server.start();
+        } else {
+            System.err.println("Server failed to bind. Host mode unavailable.");
+        }
+    }
+
+    public boolean tryInitClient(String ip) {
+        lastJoinError = "";
+
+        if (ip == null || ip.trim().isEmpty()) {
+            if (allowLocalJoin) {
+                ip = "127.0.0.1:9876";
+            } else {
+                lastJoinError = "Enter the host computer's address (e.g. 192.168.1.50:9876).";
+                return false;
+            }
+        }
+
+        if (server != null) {
+            lastJoinError = "You are already hosting a game. Go back home before joining another room.";
+            return false;
+        }
+
+        String trimmed = ip.trim();
+        if (!allowLocalJoin && (trimmed.matches("\\d+") || trimmed.startsWith(":"))) {
+            lastJoinError = "Enter the host IP as well (e.g. 192.168.1.50:9876), not only the port.";
+            return false;
+        }
+
+        JoinTarget target = parseJoinTarget(ip);
+        if (!allowLocalJoin && isLocalHostName(target.host)) {
+            lastJoinError = "You cannot join your own game on this computer. Use another player's address.";
+            return false;
+        }
+
+        initClient(target.host, target.port);
+        return true;
+    }
+
+    private JoinTarget parseJoinTarget(String ip) {
+        String host = "localhost";
+        int port = 9876;
+        if (ip != null && !ip.trim().isEmpty()) {
+            String s = ip.trim();
+            if (s.startsWith(":")) {
+                try {
+                    port = Integer.parseInt(s.substring(1));
+                } catch (NumberFormatException e) {
+                    // keep default port
+                }
+            } else if (s.matches("\\d+")) {
+                try {
+                    port = Integer.parseInt(s);
+                } catch (NumberFormatException e) {
+                    // keep default port
+                }
+            } else if (s.contains(":")) {
+                String[] parts = s.split(":", 2);
+                host = parts[0].isEmpty() ? "localhost" : parts[0];
+                try {
+                    port = Integer.parseInt(parts[1]);
+                } catch (Exception e) {
+                    // keep default port
+                }
+            } else {
+                host = s;
+            }
+        }
+        return new JoinTarget(host, port);
+    }
+
+    private boolean isLocalHostName(String host) {
+        if (host == null || host.isEmpty()) {
+            return true;
+        }
+        String h = host.toLowerCase();
+        return h.equals("localhost")
+            || h.equals("0.0.0.0")
+            || h.equals("::1")
+            || h.startsWith("127.");
+    }
+
+    public void onJoinDenied(String reason) {
+        lastJoinError = reason;
+        if (client != null) {
+            client.stopClient();
+            client = null;
+        }
         synchronized (players) {
             players.clear();
         }
         localPlayerID = -1;
-        client = new GameClient(this, ip);
+        if (joinDeniedAction != null) {
+            joinDeniedAction.run();
+        }
+    }
+
+    private void initClient(String host, int port) {
+        synchronized (players) {
+            players.clear();
+        }
+        localPlayerID = -1;
+        try {
+            stageManager = new com.mygame.level.MultiplayerStageManager();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        client = new com.mygame.net.GameClient(this, host, port);
         client.start();
     }
 
@@ -221,9 +411,20 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void startLobbyGame(int stageIndex) {
+        if (server != null && lobbyPlayerCount < 4) {
+            return;
+        }
         lobbyStageIndex = stageIndex;
         if (server != null) {
             server.broadcastStart(stageIndex);
+        }
+        // If we're in a multiplayer session (host or client), use separate multiplayer levels
+        if (server != null || client != null) {
+            try {
+                stageManager = new com.mygame.level.MultiplayerStageManager();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
         }
         startGameAtStage(stageIndex);
     }
@@ -301,6 +502,10 @@ public class GamePanel extends JPanel implements Runnable {
 
         // Only server (or single player) should update physics authority
         if (server != null || client == null) {
+            if (server != null) {
+                server.applyNetworkInputs();
+            }
+
             Player lp = getLocalPlayer();
             if (lp != null) {
                 stageManager.update(lp);
@@ -385,6 +590,11 @@ public class GamePanel extends JPanel implements Runnable {
             }
         }
 
+        Player localPlayer = getLocalPlayer();
+        if (localPlayer != null && shouldShowLocalPlayerIndicator()) {
+            drawLocalPlayerIndicator(g2d, localPlayer);
+        }
+
         // HUD
         g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 16));
 
@@ -428,6 +638,53 @@ public class GamePanel extends JPanel implements Runnable {
             drawGameMenuButton(g2d, buttons[0], "RESUME");
             drawGameMenuButton(g2d, buttons[1], "HOME PAGE");
         }
+    }
+
+    private boolean shouldShowLocalPlayerIndicator() {
+        if (server != null || client != null) {
+            return true;
+        }
+        synchronized (players) {
+            return players.size() > 1;
+        }
+    }
+
+    private void drawLocalPlayerIndicator(Graphics2D g2d, Player player) {
+        int cx = player.getX() + player.getWidth() / 2;
+        int top = player.getY();
+        double bob = Math.sin(System.currentTimeMillis() * 0.006) * 5;
+        int tipY = (int) (top - 12 + bob);
+        int baseY = tipY - 16;
+
+        int[] xs = { cx, cx - 12, cx + 12 };
+        int[] ys = { tipY, baseY, baseY };
+
+        Object oldHint = g2d.getRenderingHint(RenderingHints.KEY_ANTIALIASING);
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        g2d.setColor(new Color(0, 0, 0, 100));
+        g2d.fillPolygon(
+            new int[] { xs[0] + 1, xs[1] + 1, xs[2] + 1 },
+            new int[] { ys[0] + 1, ys[1] + 1, ys[2] + 1 },
+            3
+        );
+        g2d.setColor(new Color(255, 215, 0, 230));
+        g2d.fillPolygon(xs, ys, 3);
+        g2d.setColor(new Color(220, 20, 20));
+        g2d.setStroke(new BasicStroke(2f));
+        g2d.drawPolygon(xs, ys, 3);
+
+        g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 11));
+        String label = "YOU";
+        FontMetrics fm = g2d.getFontMetrics();
+        int labelX = cx - fm.stringWidth(label) / 2;
+        int labelY = baseY - 6;
+        g2d.setColor(new Color(0, 0, 0, 140));
+        g2d.drawString(label, labelX + 1, labelY + 1);
+        g2d.setColor(new Color(255, 230, 80));
+        g2d.drawString(label, labelX, labelY);
+
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, oldHint);
     }
 
     private void drawGameMenuButton(Graphics2D g2d, Rectangle rect, String label) {

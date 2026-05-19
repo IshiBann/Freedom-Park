@@ -19,8 +19,9 @@ public class GameClient extends Thread {
     private int playerID = -1;
     private volatile boolean running = true;
 
-    public GameClient(GamePanel game, String serverIP) {
+    public GameClient(GamePanel game, String serverIP, int port) {
         this.game = game;
+        this.port = port;
         try {
             this.socket = new DatagramSocket();
             this.serverAddress = InetAddress.getByName(serverIP);
@@ -64,12 +65,22 @@ public class GameClient extends Thread {
             this.playerID = Integer.parseInt(tokens[1]);
             game.setLocalPlayerID(this.playerID);
             game.ensureLocalPlayer(this.playerID);
-            System.out.println("Joined server as Player " + this.playerID);
+            System.out.println("Joined server as Player " + (this.playerID + 1));
         } else if (type.equals("LOBBY")) {
             int stageIndex = Integer.parseInt(tokens[1]);
             int playerCount = tokens.length > 2 ? Integer.parseInt(tokens[2]) : 1;
             game.setLobbyStageIndex(stageIndex);
             game.setLobbyPlayerCount(playerCount);
+            if (tokens.length > 3) {
+                int[] occupied = new int[tokens.length - 3];
+                for (int i = 0; i < occupied.length; i++) {
+                    occupied[i] = Integer.parseInt(tokens[i + 3]);
+                }
+                game.syncLobbyRoster(occupied);
+            }
+        } else if (type.equals("DENIED")) {
+            String reason = tokens.length > 1 ? message.substring(message.indexOf(',') + 1) : "Join denied.";
+            game.onJoinDenied(reason);
         } else if (type.equals("START")) {
             int stageIndex = Integer.parseInt(tokens[1]);
             game.startGameAtStage(stageIndex);
@@ -118,20 +129,39 @@ public class GameClient extends Thread {
     }
 
     private void updateOrCreatePlayer(int id, int x, int y, boolean ml, boolean mr, boolean ij) {
-        boolean found = false;
+        int localId = game.getLocalPlayerID();
         synchronized(game.getPlayers()) {
             for (Player p : game.getPlayers()) {
-                if (p.getPlayerID() == id) {
+                if (p.getPlayerID() != id) {
+                    continue;
+                }
+                if (id == localId) {
+                    // Authority for position is server; movement flags stay local for animation.
                     p.setX(x);
                     p.setY(y);
-                    p.setMovingLeft(ml);
-                    p.setMovingRight(mr);
-                    p.setIsJumping(ij);
-                    found = true;
-                    break;
+                    return;
                 }
+                int prevY = p.getY();
+                p.setX(x);
+                p.setY(y);
+                p.setMovingLeft(ml);
+                p.setMovingRight(mr);
+                if (ij) {
+                    p.setIsJumping(true);
+                } else if (y >= prevY) {
+                    p.setIsJumping(false);
+                }
+                return;
             }
-            if (!found) {
+
+            if (id == localId) {
+                game.ensureLocalPlayer(id);
+                Player local = game.getLocalPlayer();
+                if (local != null) {
+                    local.setX(x);
+                    local.setY(y);
+                }
+            } else {
                 Player newPlayer = new Player(id, x, y);
                 newPlayer.setMovingLeft(ml);
                 newPlayer.setMovingRight(mr);

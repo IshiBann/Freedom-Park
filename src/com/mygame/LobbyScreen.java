@@ -43,6 +43,7 @@ public class LobbyScreen extends JPanel {
     private static final Color GOLD = new Color(255, 215, 0);
     private static final Color GOLD_DIM = new Color(255, 215, 0, 140);
     private static final Color RED = new Color(220, 20, 20);
+    private static final int MIN_PLAYERS_TO_START = 4;
 
     public LobbyScreen(GamePanel gamePanel) {
         this.gamePanel = gamePanel;
@@ -66,7 +67,7 @@ public class LobbyScreen extends JPanel {
             @Override
             public void mouseClicked(MouseEvent e) {
                 Rectangle[] buttons = getButtonRects();
-                if (buttons[0].contains(e.getPoint()) && canStart) {
+                if (buttons[0].contains(e.getPoint()) && isStartAllowed()) {
                     if (startAction != null) startAction.run();
                 } else if (buttons[1].contains(e.getPoint())) {
                     if (backAction != null) backAction.run();
@@ -97,6 +98,10 @@ public class LobbyScreen extends JPanel {
         return stageIndex;
     }
 
+    private boolean isStartAllowed() {
+        return canStart && gamePanel.getLobbyPlayerCount() >= MIN_PLAYERS_TO_START;
+    }
+
     private Rectangle[] getButtonRects() {
         int W = getWidth();
         int H = getHeight();
@@ -104,7 +109,7 @@ public class LobbyScreen extends JPanel {
         int bh = 48;
         int gap = 16;
         int x = (W - bw) / 2;
-        int y = H - 150;
+        int y = H - 210;
         return new Rectangle[] {
             new Rectangle(x, y, bw, bh),
             new Rectangle(x, y + bh + gap, bw, bh)
@@ -200,14 +205,33 @@ public class LobbyScreen extends JPanel {
 
             g2.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
             g2.setColor(GOLD_DIM);
-            g2.drawString(player != null ? "READYING UP" : "WAITING...", x + 18, y + 58);
+            String status;
+            if (player == null) {
+                status = "WAITING...";
+            } else if (player.getPlayerID() == gamePanel.getLocalPlayerID()) {
+                status = "YOU";
+            } else if (i == 0) {
+                status = "HOST";
+            } else {
+                status = "READYING UP";
+            }
+            g2.drawString(status, x + 18, y + 58);
         }
     }
 
     private void drawButtons(Graphics2D g2, int W, int H) {
         Rectangle[] buttons = getButtonRects();
 
-        drawButton(g2, buttons[0], canStart ? "START GAME" : "WAITING FOR HOST", canStart);
+        boolean startAllowed = isStartAllowed();
+        String startLabel;
+        if (!canStart) {
+            startLabel = "WAITING FOR HOST";
+        } else if (gamePanel.getLobbyPlayerCount() < MIN_PLAYERS_TO_START) {
+            startLabel = "NEED " + MIN_PLAYERS_TO_START + " PLAYERS";
+        } else {
+            startLabel = "START GAME";
+        }
+        drawButton(g2, buttons[0], startLabel, startAllowed);
         drawButton(g2, buttons[1], "BACK TO HOME", true);
 
         g2.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
