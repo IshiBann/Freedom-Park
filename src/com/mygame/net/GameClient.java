@@ -17,6 +17,7 @@ public class GameClient extends Thread {
     private GamePanel game;
     private int port = 9876;
     private int playerID = -1;
+    private volatile boolean running = true;
 
     public GameClient(GamePanel game, String serverIP) {
         this.game = game;
@@ -31,15 +32,26 @@ public class GameClient extends Thread {
     public void run() {
         sendJoinRequest();
 
-        while (true) {
+        while (running) {
             byte[] data = new byte[1024];
             DatagramPacket packet = new DatagramPacket(data, data.length);
             try {
                 socket.receive(packet);
             } catch (IOException e) {
+                if (!running) {
+                    break;
+                }
                 e.printStackTrace();
+                continue;
             }
             parsePacket(packet.getData());
+        }
+    }
+
+    public void stopClient() {
+        running = false;
+        if (socket != null && !socket.isClosed()) {
+            socket.close();
         }
     }
 
@@ -51,7 +63,16 @@ public class GameClient extends Thread {
         if (type.equals("JOINED")) {
             this.playerID = Integer.parseInt(tokens[1]);
             game.setLocalPlayerID(this.playerID);
+            game.ensureLocalPlayer(this.playerID);
             System.out.println("Joined server as Player " + this.playerID);
+        } else if (type.equals("LOBBY")) {
+            int stageIndex = Integer.parseInt(tokens[1]);
+            int playerCount = tokens.length > 2 ? Integer.parseInt(tokens[2]) : 1;
+            game.setLobbyStageIndex(stageIndex);
+            game.setLobbyPlayerCount(playerCount);
+        } else if (type.equals("START")) {
+            int stageIndex = Integer.parseInt(tokens[1]);
+            game.startGameAtStage(stageIndex);
         } else if (type.equals("STATE")) {
             handleWorldState(tokens);
         }

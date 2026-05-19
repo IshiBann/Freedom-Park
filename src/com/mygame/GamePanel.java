@@ -4,8 +4,12 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.FontMetrics;
+import java.awt.Rectangle;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
@@ -15,12 +19,11 @@ import com.mygame.net.GameClient;
 import com.mygame.net.GameServer;
 
 public class GamePanel extends JPanel implements Runnable {
-
     public final int screenWidth = 1200;
     public final int screenHeight = 800;
-
     private boolean gameFinished = false;
     private Thread gameThread;
+    private volatile boolean inGameMenuOpen = false;
 
     private java.util.List<Player> players;
     private int localPlayerID = -1; // -1 means no local player yet (e.g. server or connecting)
@@ -28,6 +31,10 @@ public class GamePanel extends JPanel implements Runnable {
 
     private GameServer server;
     private GameClient client;
+    private Runnable homeAction;
+    private Runnable gameStartAction;
+    private int lobbyStageIndex = 0;
+    private int lobbyPlayerCount = 1;
 
     public GamePanel() {
         this.setPreferredSize(new Dimension(screenWidth, screenHeight));
@@ -50,6 +57,16 @@ public class GamePanel extends JPanel implements Runnable {
         this.addKeyListener(new KeyAdapter() {
             @Override
             public void keyPressed(KeyEvent e) {
+                if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+                    inGameMenuOpen = !inGameMenuOpen;
+                    repaint();
+                    return;
+                }
+
+                if (inGameMenuOpen) {
+                    return;
+                }
+
                 Player p = getLocalPlayer();
                 if (p != null) p.keyPressed(e);
 
@@ -74,8 +91,29 @@ public class GamePanel extends JPanel implements Runnable {
 
             @Override
             public void keyReleased(KeyEvent e) {
+                if (inGameMenuOpen) {
+                    return;
+                }
                 Player p = getLocalPlayer();
                 if (p != null) p.keyReleased(e);
+            }
+        });
+
+        this.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (!inGameMenuOpen) {
+                    return;
+                }
+
+                Rectangle[] buttons = getGameMenuButtonRects();
+                if (buttons[0].contains(e.getPoint())) {
+                    inGameMenuOpen = false;
+                    repaint();
+                } else if (buttons[1].contains(e.getPoint()) && homeAction != null) {
+                    inGameMenuOpen = false;
+                    homeAction.run();
+                }
             }
         });
     }
@@ -95,14 +133,99 @@ public class GamePanel extends JPanel implements Runnable {
         this.localPlayerID = id;
     }
 
+    public void setHomeAction(Runnable action) {
+        this.homeAction = action;
+    }
+
+    public void setGameStartAction(Runnable action) {
+        this.gameStartAction = action;
+    }
+
+    public void setLobbyStageIndex(int stageIndex) {
+        this.lobbyStageIndex = stageIndex;
+        if (server != null) {
+            server.setLobbyStageIndex(stageIndex);
+        }
+    }
+
+    public int getLobbyStageIndex() {
+        return lobbyStageIndex;
+    }
+
+    public void setLobbyPlayerCount(int count) {
+        this.lobbyPlayerCount = count;
+    }
+
+    public int getLobbyPlayerCount() {
+        return lobbyPlayerCount;
+    }
+
+    public void ensureLocalPlayer(int id) {
+        synchronized (players) {
+            for (Player p : players) {
+                if (p.getPlayerID() == id) {
+                    localPlayerID = id;
+                    return;
+                }
+            }
+
+            Player localPlayer = new Player(
+                id,
+                stageManager.getCurrentStage().getPlayerSpawnX(),
+                stageManager.getCurrentStage().getPlayerSpawnY()
+            );
+            localPlayer.setPlayerID(id);
+            players.add(localPlayer);
+            localPlayerID = id;
+        }
+    }
+
     public void initServer() {
         server = new GameServer(this);
         server.start();
     }
 
     public void initClient(String ip) {
+        synchronized (players) {
+            players.clear();
+        }
+        localPlayerID = -1;
         client = new GameClient(this, ip);
         client.start();
+    }
+
+    public void returnToHome() {
+        inGameMenuOpen = false;
+        gameFinished = false;
+        stopGameThread();
+
+        if (client != null) {
+            client.stopClient();
+            client = null;
+        }
+
+        if (server != null) {
+            server.stopServer();
+            server = null;
+        }
+
+        synchronized (players) {
+            players.clear();
+        }
+
+        localPlayerID = -1;
+        stageManager = new StageManager();
+        lobbyStageIndex = 0;
+        lobbyPlayerCount = 1;
+        repaint();
+    }
+
+    public void startLobbyGame(int stageIndex) {
+        lobbyStageIndex = stageIndex;
+        if (server != null) {
+            server.broadcastStart(stageIndex);
+        }
+        startGameAtStage(stageIndex);
     }
 
     public void startGameAtStage(int stageIndex) {
@@ -114,6 +237,9 @@ public class GamePanel extends JPanel implements Runnable {
         }
         gameFinished = false;
         startGameThread();
+        if (gameStartAction != null) {
+            gameStartAction.run();
+        }
         requestFocusInWindow();
     }
 
@@ -123,6 +249,25 @@ public class GamePanel extends JPanel implements Runnable {
         }
         gameThread = new Thread(this);
         gameThread.start();
+    }
+
+    public void stopGameThread() {
+        gameThread = null;
+    }
+
+    private Rectangle[] getGameMenuButtonRects() {
+        int W = getWidth();
+        int H = getHeight();
+        int bw = 240;
+        int bh = 48;
+        int gap = 16;
+        int totalH = (bh * 2) + gap;
+        int x = (W - bw) / 2;
+        int y = H / 2 - totalH / 2 + 20;
+        return new Rectangle[] {
+            new Rectangle(x, y, bw, bh),
+            new Rectangle(x, y + bh + gap, bw, bh)
+        };
     }
 
     @Override
@@ -263,5 +408,36 @@ public class GamePanel extends JPanel implements Runnable {
             g2d.setColor(Color.WHITE);
             g2d.drawString("Game Clear!", screenWidth / 2 - 140, screenHeight / 2 + 8);
         }
+
+        if (inGameMenuOpen) {
+            g2d.setColor(new Color(0, 0, 0, 150));
+            g2d.fillRect(0, 0, screenWidth, screenHeight);
+
+            Rectangle[] buttons = getGameMenuButtonRects();
+            g2d.setColor(new Color(20, 10, 24, 240));
+            g2d.fillRoundRect(screenWidth / 2 - 280, screenHeight / 2 - 150, 560, 300, 18, 18);
+            g2d.setColor(new Color(220, 20, 20, 120));
+            g2d.drawRoundRect(screenWidth / 2 - 280, screenHeight / 2 - 150, 560, 300, 18, 18);
+
+            g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 28));
+            String title = "MAIN MENU";
+            FontMetrics fm = g2d.getFontMetrics();
+            g2d.setColor(Color.WHITE);
+            g2d.drawString(title, screenWidth / 2 - fm.stringWidth(title) / 2, screenHeight / 2 - 95);
+
+            drawGameMenuButton(g2d, buttons[0], "RESUME");
+            drawGameMenuButton(g2d, buttons[1], "HOME PAGE");
+        }
+    }
+
+    private void drawGameMenuButton(Graphics2D g2d, Rectangle rect, String label) {
+        g2d.setColor(new Color(35, 20, 40, 240));
+        g2d.fillRoundRect(rect.x, rect.y, rect.width, rect.height, 10, 10);
+        g2d.setColor(new Color(255, 215, 0, 150));
+        g2d.drawRoundRect(rect.x, rect.y, rect.width, rect.height, 10, 10);
+        g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 18));
+        FontMetrics fm = g2d.getFontMetrics();
+        g2d.setColor(Color.WHITE);
+        g2d.drawString(label, rect.x + (rect.width - fm.stringWidth(label)) / 2, rect.y + (rect.height + fm.getAscent()) / 2 - 3);
     }
 }

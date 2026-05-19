@@ -28,7 +28,7 @@ import java.nio.file.Paths;
 public class MenuScreen extends JPanel {
 
     // ─── State ───────────────────────────────────────────────────────────────
-    public enum MenuState { TITLE, STAGE_SELECT }
+    public enum MenuState { TITLE, MODE_SELECT, MULTIPLAYER_SELECT, JOIN_INPUT, STAGE_SELECT }
     private MenuState menuState = MenuState.TITLE;
 
     // ─── Assets ──────────────────────────────────────────────────────────────
@@ -37,8 +37,14 @@ public class MenuScreen extends JPanel {
 
     // ─── Interaction ─────────────────────────────────────────────────────────
     private int hoveredStageIndex = -1;
+    private int hoveredMenuButtonIndex = -1;
+    private int hoveredStageNavButtonIndex = -1;
     private Runnable exitAction;
+    private Runnable singlePlayerAction;
+    private Runnable hostGameAction;
+    private java.util.function.Consumer<String> joinGameAction;
     private java.util.function.IntConsumer stageSelectedAction;
+    private String joinAddress = "localhost";
 
     // ─── Animation ───────────────────────────────────────────────────────────
     private long   tickCount    = 0;
@@ -105,7 +111,18 @@ public class MenuScreen extends JPanel {
 
     // ─── Public API ──────────────────────────────────────────────────────────
     public void setExitAction(Runnable r)                          { this.exitAction = r; }
+    public void setSinglePlayerAction(Runnable r)                 { this.singlePlayerAction = r; }
+    public void setHostGameAction(Runnable r)                     { this.hostGameAction = r; }
+    public void setJoinGameAction(java.util.function.Consumer<String> c) { this.joinGameAction = c; }
     public void setStageSelectedAction(java.util.function.IntConsumer c) { this.stageSelectedAction = c; }
+
+    public void openStageSelect() {
+        menuState = MenuState.STAGE_SELECT;
+        repaint();
+    }
+    public void showTitleScreen() { menuState = MenuState.TITLE; repaint(); }
+    public void showStageSelect() { menuState = MenuState.STAGE_SELECT; repaint(); }
+    public void showModeSelect() { menuState = MenuState.MODE_SELECT; repaint(); }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // Init helpers
@@ -153,7 +170,10 @@ public class MenuScreen extends JPanel {
         addKeyListener(new KeyAdapter() {
             @Override public void keyPressed(KeyEvent e) {
                 if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-                    if (menuState == MenuState.STAGE_SELECT) { menuState = MenuState.TITLE; repaint(); }
+                    if (menuState == MenuState.STAGE_SELECT) { menuState = MenuState.MODE_SELECT; repaint(); }
+                    else if (menuState == MenuState.JOIN_INPUT) { menuState = MenuState.MULTIPLAYER_SELECT; repaint(); }
+                    else if (menuState == MenuState.MULTIPLAYER_SELECT) { menuState = MenuState.MODE_SELECT; repaint(); }
+                    else if (menuState == MenuState.MODE_SELECT) { menuState = MenuState.TITLE; repaint(); }
                     else if (exitAction != null) exitAction.run();
                     return;
                 }
@@ -166,19 +186,33 @@ public class MenuScreen extends JPanel {
         });
         addMouseMotionListener(new MouseAdapter() {
             @Override public void mouseMoved(MouseEvent e) {
-                int idx = stageCardAt(e.getPoint());
-                boolean changed = idx != hoveredStageIndex;
-                hoveredStageIndex = idx;
-                setCursor(idx >= 0 && idx != LOCKED_IDX
-                    ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
-                    : Cursor.getDefaultCursor());
-                if (changed) repaint();
+                if (menuState == MenuState.STAGE_SELECT) {
+                    int navIdx = stageNavButtonAt(e.getPoint());
+                    int idx = navIdx >= 0 ? -1 : stageCardAt(e.getPoint());
+                    boolean changed = idx != hoveredStageIndex || navIdx != hoveredStageNavButtonIndex;
+                    hoveredStageIndex = idx;
+                    hoveredStageNavButtonIndex = navIdx;
+                    setCursor((navIdx >= 0 || (idx >= 0 && idx != LOCKED_IDX))
+                        ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+                        : Cursor.getDefaultCursor());
+                    if (changed) repaint();
+                } else {
+                    int idx = menuButtonAt(e.getPoint());
+                    boolean changed = idx != hoveredMenuButtonIndex;
+                    hoveredMenuButtonIndex = idx;
+                    setCursor(idx >= 0
+                        ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+                        : Cursor.getDefaultCursor());
+                    if (changed) repaint();
+                }
             }
         });
     }
 
     private void resetHover() {
         hoveredStageIndex = -1;
+        hoveredMenuButtonIndex = -1;
+        hoveredStageNavButtonIndex = -1;
         setCursor(Cursor.getDefaultCursor());
         repaint();
     }
@@ -198,15 +232,94 @@ public class MenuScreen extends JPanel {
     // Input
     // ═══════════════════════════════════════════════════════════════════════════
     private void handleKeyPressed(KeyEvent e) {
-        if (menuState == MenuState.TITLE) { menuState = MenuState.STAGE_SELECT; repaint(); }
+        if (menuState == MenuState.TITLE) {
+            menuState = MenuState.MODE_SELECT;
+            repaint();
+            return;
+        }
+
+        if (menuState == MenuState.JOIN_INPUT) {
+            handleJoinInputKey(e);
+        }
     }
 
     private void handleMouseClick(Point p) {
-        if (menuState == MenuState.TITLE) { menuState = MenuState.STAGE_SELECT; repaint(); return; }
+        if (menuState == MenuState.TITLE) { menuState = MenuState.MODE_SELECT; repaint(); return; }
+
+        if (menuState == MenuState.MODE_SELECT) {
+            int idx = menuButtonAt(p);
+            if (idx == 0) {
+                if (singlePlayerAction != null) singlePlayerAction.run();
+                menuState = MenuState.STAGE_SELECT;
+                repaint();
+            }
+            else if (idx == 1) { menuState = MenuState.MULTIPLAYER_SELECT; repaint(); }
+            else if (idx == 2) { menuState = MenuState.TITLE; repaint(); }
+            return;
+        }
+
+        if (menuState == MenuState.MULTIPLAYER_SELECT) {
+            int idx = menuButtonAt(p);
+            if (idx == 0) {
+                if (hostGameAction != null) hostGameAction.run();
+            } else if (idx == 1) {
+                menuState = MenuState.JOIN_INPUT;
+                repaint();
+            } else if (idx == 2) {
+                menuState = MenuState.MODE_SELECT;
+                repaint();
+            }
+            return;
+        }
+
+        if (menuState == MenuState.JOIN_INPUT) {
+            int idx = menuButtonAt(p);
+            if (idx == 0) {
+                if (joinGameAction != null && !joinAddress.trim().isEmpty()) {
+                    joinGameAction.accept(joinAddress.trim());
+                }
+            } else if (idx == 1) {
+                menuState = MenuState.MULTIPLAYER_SELECT;
+                repaint();
+            }
+            return;
+        }
+
         if (menuState == MenuState.STAGE_SELECT) {
             int idx = stageCardAt(p);
             if (idx >= 0 && idx != LOCKED_IDX && stageSelectedAction != null)
                 stageSelectedAction.accept(idx);
+
+            int navIdx = stageNavButtonAt(p);
+            if (navIdx == 0) {
+                menuState = MenuState.MODE_SELECT;
+                repaint();
+            } else if (navIdx == 1) {
+                menuState = MenuState.TITLE;
+                repaint();
+            }
+        }
+    }
+
+    private void handleJoinInputKey(KeyEvent e) {
+        if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+            if (joinGameAction != null && !joinAddress.trim().isEmpty()) {
+                joinGameAction.accept(joinAddress.trim());
+            }
+            return;
+        }
+        if (e.getKeyCode() == KeyEvent.VK_BACK_SPACE) {
+            if (!joinAddress.isEmpty()) {
+                joinAddress = joinAddress.substring(0, joinAddress.length() - 1);
+                repaint();
+            }
+            return;
+        }
+
+        char c = e.getKeyChar();
+        if (!Character.isISOControl(c) && joinAddress.length() < 64) {
+            joinAddress += c;
+            repaint();
         }
     }
 
@@ -242,6 +355,51 @@ public class MenuScreen extends JPanel {
         return rects;
     }
 
+    private Rectangle[] getMenuButtonRects() {
+        int W = getWidth();
+        int H = getHeight();
+        int bw = Math.min(340, W - 120);
+        int bh = 52;
+        int gap = 16;
+        int count = (menuState == MenuState.JOIN_INPUT) ? 2 : 3;
+        int totalH = count * bh + (count - 1) * gap;
+        int startY = H / 2 - totalH / 2 + 20;
+        int x = (W - bw) / 2;
+        Rectangle[] rects = new Rectangle[count];
+        for (int i = 0; i < count; i++) {
+            rects[i] = new Rectangle(x, startY + i * (bh + gap), bw, bh);
+        }
+        return rects;
+    }
+
+    private Rectangle[] getStageNavButtonRects() {
+        int W = getWidth();
+        int H = getHeight();
+        int bw = 170;
+        int bh = 42;
+        int y = H - 72;
+        Rectangle[] rects = new Rectangle[2];
+        rects[0] = new Rectangle(36, y, bw, bh);
+        rects[1] = new Rectangle(W - 36 - bw, y, bw, bh);
+        return rects;
+    }
+
+    private int stageNavButtonAt(Point p) {
+        Rectangle[] rects = getStageNavButtonRects();
+        for (int i = 0; i < rects.length; i++) {
+            if (rects[i].contains(p)) return i;
+        }
+        return -1;
+    }
+
+    private int menuButtonAt(Point p) {
+        Rectangle[] rects = getMenuButtonRects();
+        for (int i = 0; i < rects.length; i++) {
+            if (rects[i].contains(p)) return i;
+        }
+        return -1;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // PAINT
     // ═══════════════════════════════════════════════════════════════════════════
@@ -260,6 +418,15 @@ public class MenuScreen extends JPanel {
 
         if (menuState == MenuState.TITLE) {
             drawTitleScreen(g2, W, H);
+        } else if (menuState == MenuState.MODE_SELECT) {
+            drawTitleScreen(g2, W, H);
+            drawModeSelect(g2, W, H);
+        } else if (menuState == MenuState.MULTIPLAYER_SELECT) {
+            drawTitleScreen(g2, W, H);
+            drawMultiplayerSelect(g2, W, H);
+        } else if (menuState == MenuState.JOIN_INPUT) {
+            drawTitleScreen(g2, W, H);
+            drawJoinInput(g2, W, H);
         } else {
             drawStars(g2, W);
             drawPerspectiveGrid(g2, W, H);
@@ -396,7 +563,7 @@ public class MenuScreen extends JPanel {
         if (pressVisible) {
             g2.setFont(pixelFont.deriveFont(Font.BOLD, 20f));
             g2.setColor(GOLD);
-            String msg = "\u25B6 PRESS ANY KEY \u25C0";
+            String msg = "\u25B6 PRESS ANY KEY OR CLICK \u25C0";
             FontMetrics fm = g2.getFontMetrics();
             int tx = (W - fm.stringWidth(msg)) / 2;
             // Glow behind text
@@ -410,9 +577,78 @@ public class MenuScreen extends JPanel {
         // Credits line at bottom
         g2.setFont(tinyFont);
         g2.setColor(new Color(255, 215, 0, 80));
-        String cr = "\u25B7 CREDITS: 99    INSERT COIN    1 OR 2 PLAYERS \u25C1";
+        String cr = "\u25B7 CREDITS: 99    SINGLE PLAYER    MULTIPLAYER \u25C1";
         FontMetrics fm = g2.getFontMetrics();
         g2.drawString(cr, (W - fm.stringWidth(cr))/2, H - 16);
+    }
+
+    private void drawModeSelect(Graphics2D g2, int W, int H) {
+        drawMenuPanel(g2, W, H, "SELECT MODE", new String[] {
+            "SINGLE PLAYER",
+            "MULTIPLAYER",
+            "BACK"
+        });
+    }
+
+    private void drawMultiplayerSelect(Graphics2D g2, int W, int H) {
+        drawMenuPanel(g2, W, H, "MULTIPLAYER", new String[] {
+            "CREATE GAME",
+            "JOIN GAME",
+            "BACK"
+        });
+    }
+
+    private void drawJoinInput(Graphics2D g2, int W, int H) {
+        Rectangle[] rects = getMenuButtonRects();
+        Rectangle field = new Rectangle(W / 2 - 210, H / 2 - 66, 420, 44);
+
+        drawMenuPanel(g2, W, H, "JOIN GAME", new String[] {
+            "CONNECT",
+            "BACK"
+        });
+
+        g2.setFont(pixelFont.deriveFont(Font.BOLD, 12f));
+        g2.setColor(new Color(0, 0, 0, 150));
+        g2.fillRoundRect(field.x, field.y, field.width, field.height, 8, 8);
+        g2.setColor(new Color(220, 20, 20, 120));
+        g2.drawRoundRect(field.x, field.y, field.width, field.height, 8, 8);
+        g2.setColor(Color.WHITE);
+        g2.drawString(joinAddress, field.x + 14, field.y + 28);
+
+        g2.setFont(tinyFont);
+        g2.setColor(new Color(255, 215, 0, 180));
+        g2.drawString("TYPE SERVER IP AND PRESS ENTER", field.x, field.y - 10);
+    }
+
+    private void drawMenuPanel(Graphics2D g2, int W, int H, String title, String[] labels) {
+        Rectangle panel = new Rectangle(W / 2 - 260, H / 2 - 160, 520, 300);
+        g2.setColor(PANEL_BG);
+        g2.fillRoundRect(panel.x, panel.y, panel.width, panel.height, 10, 10);
+        g2.setColor(PANEL_BORDER);
+        g2.drawRoundRect(panel.x, panel.y, panel.width, panel.height, 10, 10);
+
+        g2.setFont(pixelFont.deriveFont(Font.BOLD, 14f));
+        g2.setColor(GOLD);
+        FontMetrics fm = g2.getFontMetrics();
+        g2.drawString(title, panel.x + (panel.width - fm.stringWidth(title)) / 2, panel.y + 34);
+
+        Rectangle[] rects = getMenuButtonRects();
+        for (int i = 0; i < labels.length && i < rects.length; i++) {
+            drawMenuButton(g2, rects[i], labels[i], i == hoveredMenuButtonIndex);
+        }
+    }
+
+    private void drawMenuButton(Graphics2D g2, Rectangle r, String label, boolean hovered) {
+        g2.setColor(hovered ? new Color(60, 8, 8, 240) : new Color(18, 10, 24, 230));
+        g2.fillRoundRect(r.x, r.y, r.width, r.height, 8, 8);
+        g2.setColor(hovered ? RED_PRI : new Color(200, 20, 20, 90));
+        g2.drawRoundRect(r.x, r.y, r.width, r.height, 8, 8);
+        g2.setFont(pixelFont.deriveFont(Font.BOLD, 11f));
+        FontMetrics fm = g2.getFontMetrics();
+        int tx = r.x + (r.width - fm.stringWidth(label)) / 2;
+        int ty = r.y + (r.height + fm.getAscent()) / 2 - 2;
+        g2.setColor(hovered ? Color.WHITE : GOLD);
+        g2.drawString(label, tx, ty);
     }
 
     /** Drawn title with multi-layer pixel glow */
@@ -492,6 +728,7 @@ public class MenuScreen extends JPanel {
 
         drawPickStageTitle(g2, W);
         drawBottomBar(g2, W, H);
+        drawStageNavButtons(g2, W, H);
     }
 
     private void drawPickStageTitle(Graphics2D g2, int W) {
@@ -711,5 +948,13 @@ public class MenuScreen extends JPanel {
         String hint = "CLICK TO SELECT  |  ESC = BACK";
         FontMetrics fm = g2.getFontMetrics();
         g2.drawString(hint, W - 40 - fm.stringWidth(hint), y);
+    }
+
+    private void drawStageNavButtons(Graphics2D g2, int W, int H) {
+        Rectangle[] rects = getStageNavButtonRects();
+        String[] labels = {"BACK", "HOME"};
+        for (int i = 0; i < rects.length; i++) {
+            drawMenuButton(g2, rects[i], labels[i], i == hoveredStageNavButtonIndex);
+        }
     }
 }

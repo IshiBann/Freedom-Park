@@ -17,6 +17,8 @@ public class GameServer extends Thread {
     private GamePanel game;
     private List<ClientInfo> clients = new ArrayList<>();
     private int port = 9876;
+    private volatile boolean running = true;
+    private int lobbyStageIndex = 0;
 
     public GameServer(GamePanel game) {
         this.game = game;
@@ -29,16 +31,32 @@ public class GameServer extends Thread {
 
     public void run() {
         System.out.println("Server started on port " + port);
-        while (true) {
+        while (running) {
             byte[] data = new byte[1024];
             DatagramPacket packet = new DatagramPacket(data, data.length);
             try {
                 socket.receive(packet);
             } catch (IOException e) {
+                if (!running) {
+                    break;
+                }
                 e.printStackTrace();
+                continue;
             }
             parsePacket(packet.getData(), packet.getAddress(), packet.getPort());
         }
+    }
+
+    public void stopServer() {
+        running = false;
+        if (socket != null && !socket.isClosed()) {
+            socket.close();
+        }
+    }
+
+    public void setLobbyStageIndex(int lobbyStageIndex) {
+        this.lobbyStageIndex = lobbyStageIndex;
+        broadcastLobbyState();
     }
 
     private void parsePacket(byte[] data, InetAddress address, int port) {
@@ -68,11 +86,13 @@ public class GameServer extends Thread {
         synchronized(game.getPlayers()) {
             game.getPlayers().add(newPlayer);
         }
+        game.setLobbyPlayerCount(game.getPlayers().size());
         
         System.out.println("Client joined: " + address.getHostAddress() + ":" + port + " as Player " + playerID);
         
         // Send confirmation to client
         sendData(("JOINED," + playerID).getBytes(), address, port);
+        sendData(("LOBBY," + lobbyStageIndex + "," + (clients.size() + 1)).getBytes(), address, port);
     }
 
     private void handleInput(String[] tokens) {
@@ -96,6 +116,15 @@ public class GameServer extends Thread {
         for (ClientInfo c : clients) {
             sendData(data, c.address, c.port);
         }
+    }
+
+    public void broadcastStart(int stageIndex) {
+        broadcast(("START," + stageIndex).getBytes());
+    }
+
+    private void broadcastLobbyState() {
+        game.setLobbyPlayerCount(clients.size() + 1);
+        broadcast(("LOBBY," + lobbyStageIndex + "," + (clients.size() + 1)).getBytes());
     }
 
     public void sendData(byte[] data, InetAddress address, int port) {
