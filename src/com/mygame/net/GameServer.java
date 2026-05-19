@@ -117,9 +117,10 @@ public class GameServer extends Thread {
         clients.add(new ClientInfo(address, port, playerID));
         
         // Add player to the server's authoritative game world (Host's screen)
-        Player newPlayer = new Player(playerID, 
-            game.getStageManager().getCurrentStage().getPlayerSpawnX(),
-            game.getStageManager().getCurrentStage().getPlayerSpawnY());
+        var stage = game.getStageManager().getCurrentStage();
+        Player newPlayer = new Player(playerID,
+            stage.getSpawnXForPlayer(playerID),
+            stage.getSpawnYForPlayer(playerID));
         
         // Synchronize list modification
         synchronized(game.getPlayers()) {
@@ -148,7 +149,7 @@ public class GameServer extends Thread {
         synchronized (game.getPlayers()) {
             for (Player p : game.getPlayers()) {
                 int id = p.getPlayerID();
-                if (id == 0) {
+                if (id == 0 || p.isWaitingAtExit()) {
                     continue;
                 }
                 InputSnapshot snap = latestInputs.get(id);

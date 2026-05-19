@@ -49,6 +49,9 @@ public class Box {
         // PLATFORM COLLISION
         // =====================
         for (Platform platform : platforms) {
+            if (!platform.isActive()) {
+                continue;
+            }
 
             boolean overlapX =
                     x + width > platform.getX() &&

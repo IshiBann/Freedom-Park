@@ -24,6 +24,7 @@ public class Player {
     private final double gravity = 0.6;
     private final double jumpPower = -15.0;
     private boolean hasKey = false;
+    private boolean waitingAtExit = false;
     private boolean jumpRequested = false;
     private Animation walkAnim;
     private BufferedImage idleFrame;
@@ -179,6 +180,9 @@ public void update(List<Platform> platforms, List<Box> boxes, List<Player> playe
     // PLATFORM COLLISION
     // =====================
     for (Platform platform : platforms) {
+        if (!platform.isActive()) {
+            continue;
+        }
 
         int left = platform.getX();
         int right = platform.getX() + platform.getWidth();
@@ -293,9 +297,20 @@ public boolean isMovingRight() {
     return movingRight;
 }
 
-public void setHasKey(boolean hasKey) {
-    this.hasKey = hasKey;
-}
+    public void setHasKey(boolean hasKey) {
+        this.hasKey = hasKey;
+    }
+
+    public boolean isWaitingAtExit() {
+        return waitingAtExit;
+    }
+
+    public void setWaitingAtExit(boolean waitingAtExit) {
+        this.waitingAtExit = waitingAtExit;
+        if (waitingAtExit) {
+            stopMovement();
+        }
+    }
 
 public int getWidth() {
     return getSpriteWidth();

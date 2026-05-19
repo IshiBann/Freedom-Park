@@ -28,15 +28,23 @@ public class StageManager {
     }
 
     public void update(Player player) {
+        update(player, java.util.Collections.singletonList(player));
+    }
+
+    public void update(Player player, List<Player> allPlayers) {
         if (allStagesCompleted) return;
 
         Stage currentStage = getCurrentStage();
-        currentStage.update(player);
+        currentStage.update(player, allPlayers);
 
         if (currentStage.isCompleted()) {
             if (currentStageIndex < stages.size() - 1) {
                 currentStageIndex++;
-                resetPlayer(player);
+                for (Player p : allPlayers) {
+                    if (p != null) {
+                        resetPlayer(p);
+                    }
+                }
             } else {
                 allStagesCompleted = true;
             }
@@ -48,9 +56,10 @@ public class StageManager {
     }
 
     private void resetPlayer(Player player) {
-        player.setX(getCurrentStage().getPlayerSpawnX());
-        player.setY(getCurrentStage().getPlayerSpawnY());
-        // Reset movement if necessary
+        player.setX(getCurrentStage().getSpawnXForPlayer(player.getPlayerID()));
+        player.setY(getCurrentStage().getSpawnYForPlayer(player.getPlayerID()));
+        player.setHasKey(false);
+        player.setWaitingAtExit(false);
         player.stopMovement();
     }
 
@@ -82,8 +91,10 @@ public class StageManager {
      */
     public void resetCurrentStage(Player player) {
         getCurrentStage().reset();
-        player.setX(getCurrentStage().getPlayerSpawnX());
-        player.setY(getCurrentStage().getPlayerSpawnY());
+        player.setX(getCurrentStage().getSpawnXForPlayer(player.getPlayerID()));
+        player.setY(getCurrentStage().getSpawnYForPlayer(player.getPlayerID()));
+        player.setHasKey(false);
+        player.setWaitingAtExit(false);
         player.stopMovement();
     }
 }

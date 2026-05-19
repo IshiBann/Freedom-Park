@@ -51,6 +51,10 @@ public class Door {
         }
     }
 
+    public void syncFromNetwork(boolean unlocked) {
+        this.unlocked = unlocked;
+    }
+
     public void draw(Graphics g) {
 
         if (unlocked) {

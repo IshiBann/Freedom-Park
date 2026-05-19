@@ -18,6 +18,7 @@ import javax.swing.JFrame;
 import javax.swing.JPanel;
 
 import com.mygame.entity.Player;
+import com.mygame.level.Stage;
 import com.mygame.level.StageManager;
 import com.mygame.net.GameClient;
 import com.mygame.net.GameServer;
@@ -221,10 +222,11 @@ public class GamePanel extends JPanel implements Runnable {
                 }
             }
 
+            var stage = stageManager.getCurrentStage();
             Player localPlayer = new Player(
                 id,
-                stageManager.getCurrentStage().getPlayerSpawnX(),
-                stageManager.getCurrentStage().getPlayerSpawnY()
+                stage.getSpawnXForPlayer(id),
+                stage.getSpawnYForPlayer(id)
             );
             players.add(localPlayer);
             localPlayerID = id;
@@ -266,6 +268,11 @@ public class GamePanel extends JPanel implements Runnable {
     /** Ensures the host occupies player slot 1 (internal id 0) in the ready room. */
     public void ensureHostInLobby() {
         ensureLocalPlayer(0);
+        Player host = getLocalPlayer();
+        if (host != null) {
+            host.setX(stageManager.getCurrentStage().getSpawnXForPlayer(0));
+            host.setY(stageManager.getCurrentStage().getSpawnYForPlayer(0));
+        }
         setLobbyPlayerCount(1);
     }
 
@@ -431,9 +438,18 @@ public class GamePanel extends JPanel implements Runnable {
 
     public void startGameAtStage(int stageIndex) {
         stageManager.setCurrentStageIndex(stageIndex);
+        // Single player: player list is cleared on returnToHome — recreate before reset
+        if (client == null && server == null) {
+            ensureLocalPlayer(0);
+        }
         synchronized (players) {
+            stageManager.getCurrentStage().reset();
             for (Player p : players) {
-                stageManager.resetCurrentStage(p);
+                p.setX(stageManager.getCurrentStage().getSpawnXForPlayer(p.getPlayerID()));
+                p.setY(stageManager.getCurrentStage().getSpawnYForPlayer(p.getPlayerID()));
+                p.setHasKey(false);
+                p.setWaitingAtExit(false);
+                p.stopMovement();
             }
         }
         gameFinished = false;
@@ -495,8 +511,8 @@ public class GamePanel extends JPanel implements Runnable {
         if (client != null) {
             // Client sends its input to server
             Player lp = getLocalPlayer();
-            if (lp != null) {
-                client.sendInput(lp.isMovingLeft(), lp.isMovingRight(), lp.consumeJumpRequest()); 
+            if (lp != null && !lp.isWaitingAtExit()) {
+                client.sendInput(lp.isMovingLeft(), lp.isMovingRight(), lp.consumeJumpRequest());
             }
         }
 
@@ -507,12 +523,19 @@ public class GamePanel extends JPanel implements Runnable {
             }
 
             Player lp = getLocalPlayer();
+            java.util.List<Player> playersSnapshot;
+            synchronized (players) {
+                playersSnapshot = new java.util.ArrayList<>(players);
+            }
             if (lp != null) {
-                stageManager.update(lp);
+                stageManager.update(lp, playersSnapshot);
             }
 
             synchronized(players) {
                 for (Player p : players) {
+                    if (p.isWaitingAtExit()) {
+                        continue;
+                    }
                     p.update(
                         stageManager.getCurrentStage().getPlatforms(),
                         stageManager.getCurrentStage().getBoxes(),
@@ -541,7 +564,7 @@ public class GamePanel extends JPanel implements Runnable {
     private void broadcastState() {
         StringBuilder sb = new StringBuilder("STATE,");
         sb.append(stageManager.getCurrentStageIndex());
-        
+
         // Players (4 slots)
         synchronized(players) {
             for (int i = 0; i < 4; i++) {
@@ -556,10 +579,13 @@ public class GamePanel extends JPanel implements Runnable {
                     sb.append(",").append(p.getX()).append(",").append(p.getY())
                       .append(",").append(p.isMovingLeft() ? 1 : 0)
                       .append(",").append(p.isMovingRight() ? 1 : 0)
-                      .append(",").append(p.isJumping() ? 1 : 0);
+                      .append(",").append(p.isJumping() ? 1 : 0)
+                      .append(",").append(p.hasKey() ? 1 : 0)
+                      .append(",").append(p.isWaitingAtExit() ? 1 : 0);
                 } else {
-                    sb.append(",0,0,0,0,0"); // Placeholder
-                }            }
+                    sb.append(",0,0,0,0,0,0,0");
+                }
+            }
         }
 
         // Boxes
@@ -567,7 +593,18 @@ public class GamePanel extends JPanel implements Runnable {
         for (com.mygame.entity.Box b : boxes) {
             sb.append(",").append(b.getX()).append(",").append(b.getY());
         }
-        
+
+        // Key and door state
+        com.mygame.entity.Key key = stageManager.getCurrentStage().getKey();
+        if (key != null) {
+            sb.append(",").append(key.isUsed() ? 1 : 0);
+        }
+
+        com.mygame.entity.Door door = stageManager.getCurrentStage().getDoor();
+        if (door != null) {
+            sb.append(",").append(door.isUnlocked() ? 1 : 0);
+        }
+
         if (server != null) {
             server.broadcast(sb.toString().getBytes());
         }
@@ -586,12 +623,22 @@ public class GamePanel extends JPanel implements Runnable {
         
         synchronized(players) {
             for (Player p : players) {
-                p.draw(g2d);
+                if (!p.isWaitingAtExit()) {
+                    p.draw(g2d);
+                }
             }
         }
 
+        java.util.List<Player> playersSnapshot;
+        synchronized (players) {
+            playersSnapshot = new java.util.ArrayList<>(players);
+        }
+        stageManager.getCurrentStage().drawKeyHolderOverlay(g2d, playersSnapshot);
+        drawKeyHolderHud(g2d, playersSnapshot);
+        drawExitWaitingHud(g2d, playersSnapshot);
+
         Player localPlayer = getLocalPlayer();
-        if (localPlayer != null && shouldShowLocalPlayerIndicator()) {
+        if (localPlayer != null && !localPlayer.isWaitingAtExit() && shouldShowLocalPlayerIndicator()) {
             drawLocalPlayerIndicator(g2d, localPlayer);
         }
 
@@ -647,6 +694,68 @@ public class GamePanel extends JPanel implements Runnable {
         synchronized (players) {
             return players.size() > 1;
         }
+    }
+
+    private void drawExitWaitingHud(Graphics2D g2d, java.util.List<Player> players) {
+        Stage stage = stageManager.getCurrentStage();
+        if (!stage.isRequireAllPlayersToExit()) {
+            return;
+        }
+        com.mygame.entity.Door door = stage.getDoor();
+        if (door == null || !door.isUnlocked()) {
+            return;
+        }
+        int waiting = stage.getExitWaitingCount();
+        if (waiting == 0) {
+            return;
+        }
+        int total = 0;
+        for (Player p : players) {
+            if (p != null) {
+                total++;
+            }
+        }
+        Player local = getLocalPlayer();
+        String msg = (local != null && local.isWaitingAtExit())
+            ? "You entered — waiting for team (" + waiting + "/" + total + ")"
+            : "EXIT: " + waiting + "/" + total + " inside — waiting for all";
+        g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 14));
+        java.awt.FontMetrics fm = g2d.getFontMetrics();
+        int w = fm.stringWidth(msg) + 24;
+        int x = (screenWidth - w) / 2;
+        int y = 74;
+        g2d.setColor(new Color(0, 0, 0, 150));
+        g2d.fillRoundRect(x, y, w, 26, 8, 8);
+        g2d.setColor(new Color(120, 200, 255));
+        g2d.drawRoundRect(x, y, w, 26, 8, 8);
+        g2d.setColor(Color.WHITE);
+        g2d.drawString(msg, x + 12, y + 18);
+    }
+
+    private void drawKeyHolderHud(Graphics2D g2d, java.util.List<Player> players) {
+        com.mygame.entity.Key key = stageManager.getCurrentStage().getKey();
+        if (key == null || !key.isCollected() || key.isUsed()) {
+            return;
+        }
+        int holderId = key.getHolderId();
+        if (holderId < 0) {
+            return;
+        }
+        Player local = getLocalPlayer();
+        String msg = (local != null && local.getPlayerID() == holderId)
+            ? "YOU HAVE THE KEY"
+            : "PLAYER " + (holderId + 1) + " HAS THE KEY";
+        g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 14));
+        java.awt.FontMetrics fm = g2d.getFontMetrics();
+        int w = fm.stringWidth(msg) + 24;
+        int x = (screenWidth - w) / 2;
+        int y = 44;
+        g2d.setColor(new Color(0, 0, 0, 150));
+        g2d.fillRoundRect(x, y, w, 26, 8, 8);
+        g2d.setColor(new Color(255, 215, 0));
+        g2d.drawRoundRect(x, y, w, 26, 8, 8);
+        g2d.setColor(Color.WHITE);
+        g2d.drawString(msg, x + 12, y + 18);
     }
 
     private void drawLocalPlayerIndicator(Graphics2D g2d, Player player) {

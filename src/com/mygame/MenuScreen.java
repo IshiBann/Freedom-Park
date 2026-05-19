@@ -90,7 +90,7 @@ public class MenuScreen extends JPanel {
     private static final int PANEL_PAD   = 18;
     private static final int HEADER_H    = 34;
     private static final int CARD_R      = 2;   // corner radius (pixel style)
-    private static final int LOCKED_IDX  = 3;
+    private static final int LOCKED_IDX  = -1; // no locked stages
 
     // Stage names (index matches stageBackgrounds[])
     private static final String[] STAGE_NAMES = {
@@ -348,19 +348,23 @@ public class MenuScreen extends JPanel {
         return "";
     }
 
+    private Rectangle getMultiplayerPanelRect(int W, int H) {
+        return new Rectangle(W / 2 - 260, H / 2 - 200, 520, 400);
+    }
+
     private Rectangle getLocalTestCheckboxRect(int panelX, int panelY, int panelW, int panelH) {
-        int w = 280;
-        int h = 22;
-        int x = panelX + (panelW - w) / 2;
-        int y = panelY + panelH - 40;
-        return new Rectangle(x, y, w, h);
+        int pad = 20;
+        int h = 56;
+        int y = panelY + panelH - h - pad;
+        return new Rectangle(panelX + pad, y, panelW - pad * 2, h);
     }
 
     private boolean localTestCheckboxAt(Point p) {
         if (menuState == MenuState.MULTIPLAYER_SELECT) {
-            int panelX = getWidth() / 2 - 260;
-            int panelY = getHeight() / 2 - 160;
-            return getLocalTestCheckboxRect(panelX, panelY, 520, 300).contains(p);
+            int W = getWidth();
+            int H = getHeight();
+            Rectangle panel = getMultiplayerPanelRect(W, H);
+            return getLocalTestCheckboxRect(panel.x, panel.y, panel.width, panel.height).contains(p);
         }
         if (menuState == MenuState.JOIN_INPUT) {
             int panelX = getWidth() / 2 - 260;
@@ -371,15 +375,28 @@ public class MenuScreen extends JPanel {
     }
 
     private void drawLocalTestCheckbox(Graphics2D g2, Rectangle area) {
-        int box = 16;
-        g2.setColor(localTestMode ? GOLD : new Color(255, 255, 255, 80));
-        g2.drawRect(area.x, area.y + 2, box, box);
+        g2.setColor(new Color(0, 0, 0, 100));
+        g2.fillRoundRect(area.x, area.y, area.width, area.height, 8, 8);
+        g2.setColor(localTestMode ? new Color(220, 20, 20, 140) : new Color(255, 255, 255, 35));
+        g2.drawRoundRect(area.x, area.y, area.width, area.height, 8, 8);
+
+        int box = 22;
+        int boxY = area.y + (area.height - box) / 2;
+        g2.setColor(localTestMode ? GOLD : new Color(255, 255, 255, 90));
+        g2.setStroke(new java.awt.BasicStroke(2f));
+        g2.drawRect(area.x + 14, boxY, box, box);
+        g2.setStroke(new java.awt.BasicStroke(1f));
         if (localTestMode) {
-            g2.fillRect(area.x + 3, area.y + 5, box - 6, box - 6);
+            g2.fillRect(area.x + 18, boxY + 4, box - 8, box - 8);
         }
+
+        int textX = area.x + 14 + box + 14;
+        g2.setFont(pixelFont.deriveFont(Font.BOLD, 11f));
+        g2.setColor(localTestMode ? Color.WHITE : GOLD);
+        g2.drawString("SAME PC TEST", textX, area.y + 24);
         g2.setFont(tinyFont);
-        g2.setColor(localTestMode ? GOLD : GOLD_DIM);
-        g2.drawString("SAME PC TEST (two terminals)", area.x + box + 10, area.y + 15);
+        g2.setColor(localTestMode ? GOLD_DIM : new Color(255, 215, 0, 120));
+        g2.drawString("Two terminals on one computer (127.0.0.1)", textX, area.y + 40);
     }
 
     private void handleJoinInputKey(KeyEvent e) {
@@ -681,33 +698,46 @@ public class MenuScreen extends JPanel {
     }
 
     private void drawMultiplayerSelect(Graphics2D g2, int W, int H) {
-        int panelW = 520;
-        int panelH = 300;
-        int panelX = W / 2 - 260;
-        int panelY = H / 2 - 160;
+        Rectangle panel = getMultiplayerPanelRect(W, H);
 
         g2.setColor(PANEL_BG);
-        g2.fillRoundRect(panelX, panelY, panelW, panelH, 10, 10);
+        g2.fillRoundRect(panel.x, panel.y, panel.width, panel.height, 10, 10);
         g2.setColor(PANEL_BORDER);
-        g2.drawRoundRect(panelX, panelY, panelW, panelH, 10, 10);
+        g2.drawRoundRect(panel.x, panel.y, panel.width, panel.height, 10, 10);
 
         g2.setFont(pixelFont.deriveFont(Font.BOLD, 14f));
         g2.setColor(GOLD);
         FontMetrics fm = g2.getFontMetrics();
         String title = "MULTIPLAYER";
-        g2.drawString(title, panelX + (panelW - fm.stringWidth(title)) / 2, panelY + 34);
+        g2.drawString(title, panel.x + (panel.width - fm.stringWidth(title)) / 2, panel.y + 34);
 
-        Rectangle[] buttons = getMenuButtonRects();
+        Rectangle[] buttons = getMultiplayerButtonRects();
         String[] labels = { "CREATE GAME", "JOIN GAME", "BACK" };
         for (int i = 0; i < labels.length; i++) {
             drawMenuButton(g2, buttons[i], labels[i], i == hoveredMenuButtonIndex);
         }
 
-        drawLocalTestCheckbox(g2, getLocalTestCheckboxRect(panelX, panelY, panelW, panelH));
+        int sepY = panel.y + panel.height - 88;
+        g2.setColor(new Color(255, 215, 0, 50));
+        g2.fillRect(panel.x + 28, sepY, panel.width - 56, 1);
+
+        drawLocalTestCheckbox(g2, getLocalTestCheckboxRect(panel.x, panel.y, panel.width, panel.height));
     }
 
     private Rectangle[] getMultiplayerButtonRects() {
-        return getMenuButtonRects();
+        int W = getWidth();
+        int H = getHeight();
+        Rectangle panel = getMultiplayerPanelRect(W, H);
+        int bw = Math.min(340, W - 120);
+        int bh = 52;
+        int gap = 14;
+        int x = (W - bw) / 2;
+        int startY = panel.y + 56;
+        return new Rectangle[] {
+            new Rectangle(x, startY, bw, bh),
+            new Rectangle(x, startY + bh + gap, bw, bh),
+            new Rectangle(x, startY + (bh + gap) * 2, bw, bh)
+        };
     }
 
     private Rectangle[] getJoinInputButtonRects() {

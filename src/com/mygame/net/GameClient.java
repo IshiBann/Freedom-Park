@@ -92,29 +92,38 @@ public class GameClient extends Thread {
     private void handleWorldState(String[] tokens) {
         // Format: STATE,StageIndex,P0x,P0y,P0ml,P0mr,P0ij, P1x,P1y,P1ml,P1mr,P1ij...
         int stageIndex = Integer.parseInt(tokens[1]);
-        
-        // Handle stage sync
-        if (game.getStageManager().getCurrentStageIndex() != stageIndex) {
+
+        boolean stageChanged = game.getStageManager().getCurrentStageIndex() != stageIndex;
+        if (stageChanged) {
             game.getStageManager().setCurrentStageIndex(stageIndex);
-        }
-
-        // Update players (index 2-21 are player coordinates and states: 4 players * 5 tokens)
-        for (int i = 0; i < 4; i++) {
-            int base = 2 + (i * 5);
-            int x = Integer.parseInt(tokens[base]);
-            int y = Integer.parseInt(tokens[base+1]);
-            boolean ml = tokens[base+2].equals("1");
-            boolean mr = tokens[base+3].equals("1");
-            boolean ij = tokens[base+4].equals("1");
-
-            if (x != 0 || y != 0) {
-                updateOrCreatePlayer(i, x, y, ml, mr, ij);
+            synchronized (game.getPlayers()) {
+                for (Player p : game.getPlayers()) {
+                    p.setWaitingAtExit(false);
+                }
             }
         }
 
-        // Update boxes (index 22 onwards)
+        // Players: 7 tokens each (x, y, ml, mr, jump, hasKey, waitingAtExit)
+        for (int i = 0; i < 4; i++) {
+            int base = 2 + (i * 7);
+            if (base + 6 >= tokens.length) {
+                break;
+            }
+            int x = Integer.parseInt(tokens[base]);
+            int y = Integer.parseInt(tokens[base + 1]);
+            boolean ml = tokens[base + 2].equals("1");
+            boolean mr = tokens[base + 3].equals("1");
+            boolean ij = tokens[base + 4].equals("1");
+            boolean hasKey = tokens[base + 5].equals("1");
+            boolean waitingAtExit = tokens[base + 6].equals("1");
+
+            if (x != 0 || y != 0 || waitingAtExit) {
+                updateOrCreatePlayer(i, x, y, ml, mr, ij, hasKey, waitingAtExit);
+            }
+        }
+
         java.util.List<com.mygame.entity.Box> boxes = game.getStageManager().getCurrentStage().getBoxes();
-        int boxTokenStart = 22;
+        int boxTokenStart = 30;
         for (int i = 0; i < boxes.size(); i++) {
             int base = boxTokenStart + (i * 2);
             if (base + 1 >= tokens.length) break;
@@ -126,9 +135,42 @@ public class GameClient extends Thread {
             b.setX(x);
             b.setY(y);
         }
+
+        // Key state (isUsed)
+        com.mygame.entity.Key key = game.getStageManager().getCurrentStage().getKey();
+        if (key != null) {
+            int keyTokenIndex = 30 + (boxes.size() * 2);
+            if (keyTokenIndex < tokens.length) {
+                boolean keyUsed = tokens[keyTokenIndex].equals("1");
+
+                int holder = -1;
+                if (!keyUsed) {
+                    synchronized (game.getPlayers()) {
+                        for (Player p : game.getPlayers()) {
+                            if (p.hasKey()) {
+                                holder = p.getPlayerID();
+                                break;
+                            }
+                        }
+                    }
+                }
+                key.syncFromNetwork(holder, keyUsed);
+            }
+        }
+
+        // Door state
+        com.mygame.entity.Door door = game.getStageManager().getCurrentStage().getDoor();
+        if (door != null) {
+            int doorTokenIndex = 30 + (boxes.size() * 2) + 1;
+            if (doorTokenIndex < tokens.length) {
+                boolean doorUnlocked = tokens[doorTokenIndex].equals("1");
+                door.syncFromNetwork(doorUnlocked);
+            }
+        }
     }
 
-    private void updateOrCreatePlayer(int id, int x, int y, boolean ml, boolean mr, boolean ij) {
+    private void updateOrCreatePlayer(int id, int x, int y, boolean ml, boolean mr, boolean ij,
+            boolean hasKey, boolean waitingAtExit) {
         int localId = game.getLocalPlayerID();
         synchronized(game.getPlayers()) {
             for (Player p : game.getPlayers()) {
@@ -136,9 +178,10 @@ public class GameClient extends Thread {
                     continue;
                 }
                 if (id == localId) {
-                    // Authority for position is server; movement flags stay local for animation.
                     p.setX(x);
                     p.setY(y);
+                    p.setHasKey(hasKey);
+                    p.setWaitingAtExit(waitingAtExit);
                     return;
                 }
                 int prevY = p.getY();
@@ -146,6 +189,8 @@ public class GameClient extends Thread {
                 p.setY(y);
                 p.setMovingLeft(ml);
                 p.setMovingRight(mr);
+                p.setHasKey(hasKey);
+                p.setWaitingAtExit(waitingAtExit);
                 if (ij) {
                     p.setIsJumping(true);
                 } else if (y >= prevY) {
@@ -160,12 +205,16 @@ public class GameClient extends Thread {
                 if (local != null) {
                     local.setX(x);
                     local.setY(y);
+                    local.setHasKey(hasKey);
+                    local.setWaitingAtExit(waitingAtExit);
                 }
             } else {
                 Player newPlayer = new Player(id, x, y);
                 newPlayer.setMovingLeft(ml);
                 newPlayer.setMovingRight(mr);
                 newPlayer.setIsJumping(ij);
+                newPlayer.setHasKey(hasKey);
+                newPlayer.setWaitingAtExit(waitingAtExit);
                 game.getPlayers().add(newPlayer);
             }
         }

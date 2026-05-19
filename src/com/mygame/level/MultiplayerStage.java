@@ -18,15 +18,18 @@ public class MultiplayerStage extends Stage {
         // Use same asset files as single-player but keep layout separate
         switch (index) {
             case 0:
-                stageName = "Multiplayer Stage 1";
-                playerSpawnX = 100;
+                stageName = "MP 1 — Stack Up";
+                playerSpawnX = 380;
                 playerSpawnY = 617;
                 loadBackground("/assets/stage 1/Background.png");
-                platforms.add(new Platform(0,   700, 1200, 50));
-                platforms.add(new Platform(350, 600, 180, 20));
-                platforms.add(new Platform(650, 520, 160, 20));
-                key = new Key(20, 100);
+
+                platforms.add(new Platform(0, 700, 1200, 50));
+                platforms.add(new Platform(418, 688, 84, 12));
+
+                // Higher key — needs a full 4-player stack
+                key = new Key(438, 235);
                 door = new Door(1050, 604);
+                requireAllPlayersToExit = true;
                 break;
             case 1:
                 stageName = "Multiplayer Stage 2";
@@ -39,6 +42,7 @@ public class MultiplayerStage extends Stage {
                 boxes.add(new Box(860, 660));
                 key = new Key(800, 300);
                 door = new Door(950, 605);
+                requireAllPlayersToExit = true;
                 break;
             case 2:
                 stageName = "Multiplayer Stage 3";
@@ -51,6 +55,7 @@ public class MultiplayerStage extends Stage {
                 boxes.add(new Box(240, 512));
                 key = new Key(15, 200);
                 door = new Door(1080, 604);
+                requireAllPlayersToExit = true;
                 break;
             case 3:
                 stageName = "Multiplayer Stage 4";
@@ -63,6 +68,7 @@ public class MultiplayerStage extends Stage {
                 boxes.add(new Box(370, 482));
                 key = new Key(40, 120);
                 door = new Door(1080, 604);
+                requireAllPlayersToExit = true;
                 break;
             default:
                 stageName = "Multiplayer Stage 5";
@@ -74,6 +80,7 @@ public class MultiplayerStage extends Stage {
                 boxes.add(new Box(190, 542));
                 key = new Key(30, 80);
                 door = new Door(1080, 604);
+                requireAllPlayersToExit = true;
                 break;
         }
     }
