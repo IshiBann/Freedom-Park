@@ -111,14 +111,14 @@ public class MultiplayerStage extends Stage {
                 platforms.add(new Platform(0, 200, 120, 20));
 
                 // === DOOR WALL (controlled by high platform button) ===
-                final Platform doorWall = new Platform(1000, 605, 200, 50);
-                platforms.add(doorWall);
+                final Wall doorWall = new Wall(1000, 605, 200, 50);
+                walls.add(doorWall);
 
                 pressurePlates.add(new PressurePlate(40, 280, 100, 15,
                     () -> doorWall.setActive(false),
                     () -> doorWall.setActive(true),
                     false));
-                boxes.add(new Box(10, 190));
+                boxes.add(new Box(60, 190));
                 // === KEY AND DOOR ===
                 key = new Key(1000, 280);
                 door = new Door(1080, 604);
