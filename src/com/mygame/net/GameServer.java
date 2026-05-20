@@ -69,7 +69,7 @@ public class GameServer extends Thread {
                 e.printStackTrace();
                 continue;
             }
-            parsePacket(packet.getData(), packet.getAddress(), packet.getPort());
+            parsePacket(packet.getData(), packet.getLength(), packet.getAddress(), packet.getPort());
         }
     }
 
@@ -85,9 +85,10 @@ public class GameServer extends Thread {
         broadcastLobbyState();
     }
 
-    private void parsePacket(byte[] data, InetAddress address, int port) {
-        String message = new String(data).trim();
-        String[] tokens = message.split(",");
+    private void parsePacket(byte[] data, int length, InetAddress address, int port) {
+        String message = new String(data, 0, length).trim();
+        String[] tokens = message.split(",", 3); // Limit to 3 to keep message intact
+        if (tokens.length < 1) return;
         String type = tokens[0];
 
         if (type.equals("JOIN")) {
@@ -148,12 +149,17 @@ public class GameServer extends Thread {
 
     private void handleChat(String[] tokens, String fullMessage) {
         if (tokens.length < 3) return;
+        
+        int senderId = Integer.parseInt(tokens[1]);
+        String msg = tokens[2];
+        
+        System.out.println("Chat received from Player " + (senderId + 1) + ": " + msg);
+
         // Broadcast the entire CHAT message to all clients
-        broadcast(fullMessage.getBytes());
+        String broadcastData = "CHAT," + senderId + "," + msg;
+        broadcast(broadcastData.getBytes());
         
         // Notify local GamePanel (Host)
-        int senderId = Integer.parseInt(tokens[1]);
-        String msg = fullMessage.substring(fullMessage.indexOf(',', fullMessage.indexOf(',') + 1) + 1);
         game.onChatMessageReceived(senderId, msg);
     }
 

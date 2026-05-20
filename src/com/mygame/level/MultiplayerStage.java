@@ -111,7 +111,7 @@ public class MultiplayerStage extends Stage {
                 platforms.add(new Platform(0, 200, 120, 20));
 
                 // === DOOR WALL (controlled by high platform button) ===
-                final Wall doorWall = new Wall(1000, 605,50, 500);
+                final Wall doorWall = new Wall(1000, 405,50, 500);
                 walls.add(doorWall);
 
                 pressurePlates.add(new PressurePlate(40, 280, 100, 15,
