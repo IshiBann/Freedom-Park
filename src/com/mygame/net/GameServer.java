@@ -94,6 +94,8 @@ public class GameServer extends Thread {
             handleJoin(address, port);
         } else if (type.equals("INP")) {
             handleInput(tokens);
+        } else if (type.equals("CHAT")) {
+            handleChat(tokens, message);
         }
     }
 
@@ -142,6 +144,17 @@ public class GameServer extends Thread {
         if (tokens[4].equals("1")) {
             snap.jump = true;
         }
+    }
+
+    private void handleChat(String[] tokens, String fullMessage) {
+        if (tokens.length < 3) return;
+        // Broadcast the entire CHAT message to all clients
+        broadcast(fullMessage.getBytes());
+        
+        // Notify local GamePanel (Host)
+        int senderId = Integer.parseInt(tokens[1]);
+        String msg = fullMessage.substring(fullMessage.indexOf(',', fullMessage.indexOf(',') + 1) + 1);
+        game.onChatMessageReceived(senderId, msg);
     }
 
     /** Apply latest client inputs on the game thread before physics (host is id 0, keyboard only). */

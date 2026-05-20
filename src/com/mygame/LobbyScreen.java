@@ -18,7 +18,9 @@ import java.awt.event.MouseEvent;
 import java.util.List;
 
 import javax.swing.JPanel;
+import javax.swing.JTextField;
 import javax.swing.Timer;
+import javax.swing.border.LineBorder;
 
 import com.mygame.entity.Player;
 
@@ -35,6 +37,9 @@ public class LobbyScreen extends JPanel {
     private String roomLabel = "ROOM: LOCALHOST";
     private int stageIndex = 0;
     private boolean canStart = false;
+
+    private final java.util.List<String> chatMessages = new java.util.ArrayList<>();
+    private JTextField chatInput;
 
     private static final Color BG_A = new Color(8, 4, 18);
     private static final Color BG_B = new Color(22, 8, 34);
@@ -74,6 +79,44 @@ public class LobbyScreen extends JPanel {
                 }
             }
         });
+
+        setLayout(null);
+        setupChatInput();
+
+        gamePanel.setChatListener((id, msg) -> {
+            addChatMessage("Player " + (id + 1) + ": " + msg);
+        });
+    }
+
+    private void setupChatInput() {
+        chatInput = new JTextField();
+        chatInput.setBounds(840, 510, 240, 30);
+        chatInput.setBackground(new Color(20, 10, 30));
+        chatInput.setForeground(Color.WHITE);
+        chatInput.setCaretColor(GOLD);
+        chatInput.setBorder(new LineBorder(PANEL_BORDER, 1));
+        chatInput.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        
+        chatInput.addActionListener(e -> {
+            String msg = chatInput.getText().trim();
+            if (!msg.isEmpty()) {
+                gamePanel.sendChatMessage(msg);
+                chatInput.setText("");
+            }
+            requestFocusInWindow(); // Return focus to screen for ESC key etc.
+        });
+
+        add(chatInput);
+    }
+
+    private void addChatMessage(String msg) {
+        synchronized (chatMessages) {
+            chatMessages.add(msg);
+            if (chatMessages.size() > 15) {
+                chatMessages.remove(0);
+            }
+        }
+        repaint();
     }
 
     public void setStartAction(Runnable startAction) {
@@ -167,7 +210,46 @@ public class LobbyScreen extends JPanel {
         g2.drawString("PLAYERS: " + Math.min(gamePanel.getLobbyPlayerCount(), 4) + "/4", 170, 313);
 
         drawPlayerPods(g2, W);
+        drawChat(g2);
         drawButtons(g2, W, H);
+    }
+
+    private void drawChat(Graphics2D g2) {
+        int x = 840;
+        int y = 170;
+        int w = 240;
+        int h = 330;
+
+        // Chat Box Background
+        g2.setColor(new Color(0, 0, 0, 100));
+        g2.fillRoundRect(x, y, w, h, 12, 12);
+        g2.setColor(PANEL_BORDER);
+        g2.drawRoundRect(x, y, w, h, 12, 12);
+
+        // Header
+        g2.setFont(new Font(Font.MONOSPACED, Font.BOLD, 12));
+        g2.setColor(GOLD_DIM);
+        g2.drawString("LOBBY CHAT", x + 10, y + 20);
+        g2.drawLine(x + 10, y + 25, x + w - 10, y + 25);
+
+        // Messages
+        g2.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        int msgY = y + 45;
+        synchronized (chatMessages) {
+            for (String msg : chatMessages) {
+                g2.setColor(new Color(255, 255, 255, 200));
+                // Simple wrapping if too long (optional, just truncate for now)
+                String display = msg;
+                if (display.length() > 28) display = display.substring(0, 25) + "...";
+                g2.drawString(display, x + 10, msgY);
+                msgY += 18;
+            }
+        }
+        
+        // Input label hint
+        g2.setFont(new Font(Font.MONOSPACED, Font.ITALIC, 11));
+        g2.setColor(new Color(255, 255, 255, 60));
+        g2.drawString("Press ENTER to send", x, y + h + 45);
     }
 
     private void drawPlayerPods(Graphics2D g2, int W) {

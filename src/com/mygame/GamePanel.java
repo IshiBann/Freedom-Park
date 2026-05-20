@@ -42,6 +42,7 @@ public class GamePanel extends JPanel implements Runnable {
     private String lastJoinError = "";
     private int lobbyStageIndex = 0;
     private int lobbyPlayerCount = 1;
+    private java.util.function.BiConsumer<Integer, String> chatListener;
 
     /** When true, allows joining localhost / same PC (for dev testing with two terminals). */
     private static boolean allowLocalJoin = false;
@@ -235,6 +236,26 @@ public class GamePanel extends JPanel implements Runnable {
 
     public int getLobbyPlayerCount() {
         return lobbyPlayerCount;
+    }
+
+    public void setChatListener(java.util.function.BiConsumer<Integer, String> listener) {
+        this.chatListener = listener;
+    }
+
+    public void onChatMessageReceived(int playerID, String message) {
+        if (chatListener != null) {
+            chatListener.accept(playerID, message);
+        }
+    }
+
+    public void sendChatMessage(String message) {
+        if (server != null) {
+            String data = "CHAT,0," + message;
+            server.broadcast(data.getBytes());
+            onChatMessageReceived(0, message);
+        } else if (client != null) {
+            client.sendChatMessage(message);
+        }
     }
 
     public void ensureLocalPlayer(int id) {

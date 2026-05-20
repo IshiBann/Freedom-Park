@@ -101,6 +101,10 @@ public class GameClient extends Thread {
             }
         } else if (type.equals("STATE")) {
             handleWorldState(tokens);
+        } else if (type.equals("CHAT")) {
+            int senderId = Integer.parseInt(tokens[1]);
+            String msg = message.substring(message.indexOf(',', message.indexOf(',') + 1) + 1);
+            game.onChatMessageReceived(senderId, msg);
         }
     }
 
@@ -263,5 +267,11 @@ public class GameClient extends Thread {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public void sendChatMessage(String msg) {
+        if (playerID == -1) return;
+        String data = "CHAT," + playerID + "," + msg;
+        sendData(data.getBytes());
     }
 }
