@@ -13,6 +13,7 @@ public class Platform {
     private int height;
     private Color color;
     private BufferedImage image;
+    private boolean active = true;
 
     public Platform(int x, int y, int width, int height) {
         this.x = x;
@@ -41,7 +42,18 @@ public class Platform {
         }
     }
 
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
     public void draw(Graphics g) {
+        if (!active) {
+            return;
+        }
         if (image != null) {
             g.drawImage(image, x, y, width, height, null);
         } else {
@@ -50,9 +62,6 @@ public class Platform {
             g.setColor(Color.BLACK);
             g.drawRect(x, y, width, height); // Outline
         }
-            // Collision box
-            g.setColor(Color.YELLOW);
-            g.drawRect(x, y, width, height);
     }
 
     // Getters

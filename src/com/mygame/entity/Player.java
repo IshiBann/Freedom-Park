@@ -11,6 +11,7 @@ import javax.imageio.ImageIO;
 
 import com.mygame.graphics.Animation;
 import com.mygame.level.Platform;
+import com.mygame.level.Wall;
 
 public class Player {
     private int playerID = -1;
@@ -24,6 +25,7 @@ public class Player {
     private final double gravity = 0.6;
     private final double jumpPower = -15.0;
     private boolean hasKey = false;
+    private boolean waitingAtExit = false;
     private boolean jumpRequested = false;
     private Animation walkAnim;
     private BufferedImage idleFrame;
@@ -66,8 +68,7 @@ public class Player {
             g.drawImage(frame, x, y, null);
         }
 
-        g.setColor(java.awt.Color.RED);
-        g.drawRect(x, y, getSpriteWidth(), getSpriteHeight()); 
+
     }
 
     private void loadAnimations() {
@@ -151,7 +152,7 @@ public class Player {
         return movingLeft || movingRight;
     }
 
-public void update(List<Platform> platforms, List<Box> boxes, List<Player> players) {
+public void update(List<Platform> platforms, List<Box> boxes, List<Player> players, List<Wall> walls) {
 
     // =====================
     // HORIZONTAL MOVE
@@ -179,6 +180,9 @@ public void update(List<Platform> platforms, List<Box> boxes, List<Player> playe
     // PLATFORM COLLISION
     // =====================
     for (Platform platform : platforms) {
+        if (!platform.isActive()) {
+            continue;
+        }
 
         int left = platform.getX();
         int right = platform.getX() + platform.getWidth();
@@ -229,6 +233,41 @@ public void update(List<Platform> platforms, List<Box> boxes, List<Player> playe
     }
 
     // =====================
+    // WALL COLLISION
+    // =====================
+    for (Wall wall : walls) {
+        if (!wall.isActive()) {
+            continue;
+        }
+
+        int left = wall.getX();
+        int right = wall.getX() + wall.getWidth();
+        int top = wall.getY();
+        int bottom = wall.getY() + wall.getHeight();
+
+        boolean overlapX = x + pw > left && x < right;
+        boolean overlapY = y + ph > top && y < bottom;
+
+        if (overlapX && overlapY) {
+            if (jumpVelocity >= 0 && prevFeet <= top) {
+                y = top - ph;
+                jumpVelocity = 0;
+                isJumping = false;
+                landed = true;
+            } else if (jumpVelocity < 0 && y >= bottom - 10) {
+                y = bottom;
+                jumpVelocity = 0;
+            } else {
+                if (x + pw/2 < left + (right-left)/2) {
+                    x = left - pw;
+                } else {
+                    x = right;
+                }
+            }
+        }
+    }
+
+    // =====================
     // PLAYER COLLISION (Pico Park Style)
     // =====================
     for (Player other : players) {
@@ -262,6 +301,13 @@ public void update(List<Platform> platforms, List<Box> boxes, List<Player> playe
     }
 
     // =====================
+    // SCREEN BOUNDARY CLAMP
+    // =====================
+    int screenWidth = 1200;
+    if (x < 0) x = 0;
+    if (x + pw > screenWidth) x = screenWidth - pw;
+
+    // =====================
     // ANIMATION
     // =====================
     updateAnimation();
@@ -293,9 +339,20 @@ public boolean isMovingRight() {
     return movingRight;
 }
 
-public void setHasKey(boolean hasKey) {
-    this.hasKey = hasKey;
-}
+    public void setHasKey(boolean hasKey) {
+        this.hasKey = hasKey;
+    }
+
+    public boolean isWaitingAtExit() {
+        return waitingAtExit;
+    }
+
+    public void setWaitingAtExit(boolean waitingAtExit) {
+        this.waitingAtExit = waitingAtExit;
+        if (waitingAtExit) {
+            stopMovement();
+        }
+    }
 
 public int getWidth() {
     return getSpriteWidth();

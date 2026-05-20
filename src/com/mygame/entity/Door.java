@@ -51,6 +51,10 @@ public class Door {
         }
     }
 
+    public void syncFromNetwork(boolean unlocked) {
+        this.unlocked = unlocked;
+    }
+
     public void draw(Graphics g) {
 
         if (unlocked) {
@@ -60,9 +64,7 @@ public class Door {
             g.drawImage(lockedImage, x, y, 64, 96, null);
         }
         
-        // Collision box highlight (Blue) - moved inside the draw method!
-        g.setColor(java.awt.Color.BLUE);
-        g.drawRect(x, y, 64, 96);
+
     }
 
     public boolean isUnlocked() {
@@ -73,11 +75,19 @@ public class Door {
         // Player center must be within the door's width to "enter"
         int playerCenterX = player.getX() + player.getWidth() / 2;
         boolean inDoorCenter = playerCenterX > x + 10 && playerCenterX < x + 54;
-        
-        boolean touchingY = 
+
+        boolean touchingY =
                 player.getY() < y + 96 &&
                 player.getY() + player.getHeight() > y;
 
         return unlocked && inDoorCenter && touchingY;
+    }
+
+    public void unlock() {
+        unlocked = true;
+    }
+
+    public void lock() {
+        unlocked = false;
     }
 }
