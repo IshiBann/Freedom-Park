@@ -84,6 +84,21 @@ public class GameClient extends Thread {
         } else if (type.equals("START")) {
             int stageIndex = Integer.parseInt(tokens[1]);
             game.startGameAtStage(stageIndex);
+        } else if (type.equals("RESET")) {
+            Player localPlayer = game.getLocalPlayer();
+            if (localPlayer != null) {
+                game.getStageManager().resetCurrentStage(localPlayer);
+                // Reposition all other players to spawn
+                for (Player p : game.getPlayers()) {
+                    if (p.getPlayerID() != game.getLocalPlayerID()) {
+                        p.setX(game.getStageManager().getCurrentStage().getSpawnXForPlayer(p.getPlayerID()));
+                        p.setY(game.getStageManager().getCurrentStage().getSpawnYForPlayer(p.getPlayerID()));
+                        p.setHasKey(false);
+                        p.setWaitingAtExit(false);
+                        p.stopMovement();
+                    }
+                }
+            }
         } else if (type.equals("STATE")) {
             handleWorldState(tokens);
         }
@@ -166,6 +181,17 @@ public class GameClient extends Thread {
                 boolean doorUnlocked = tokens[doorTokenIndex].equals("1");
                 door.syncFromNetwork(doorUnlocked);
             }
+        }
+
+        // Pressure plates
+        java.util.List<com.mygame.entity.PressurePlate> plates = game.getStageManager().getCurrentStage().getPressurePlates();
+        int plateTokenStart = 30 + (boxes.size() * 2) + 2;
+        for (int i = 0; i < plates.size(); i++) {
+            int tokenIndex = plateTokenStart + i;
+            if (tokenIndex >= tokens.length) break;
+            boolean isPressed = tokens[tokenIndex].equals("1");
+            com.mygame.entity.PressurePlate plate = plates.get(i);
+            plate.setPressedFromNetwork(isPressed);
         }
     }
 

@@ -11,6 +11,7 @@ import javax.imageio.ImageIO;
 
 import com.mygame.graphics.Animation;
 import com.mygame.level.Platform;
+import com.mygame.level.Wall;
 
 public class Player {
     private int playerID = -1;
@@ -152,7 +153,7 @@ public class Player {
         return movingLeft || movingRight;
     }
 
-public void update(List<Platform> platforms, List<Box> boxes, List<Player> players) {
+public void update(List<Platform> platforms, List<Box> boxes, List<Player> players, List<Wall> walls) {
 
     // =====================
     // HORIZONTAL MOVE
@@ -229,6 +230,41 @@ public void update(List<Platform> platforms, List<Box> boxes, List<Player> playe
             jumpVelocity = 0;
             isJumping = false;
             landed = true;
+        }
+    }
+
+    // =====================
+    // WALL COLLISION
+    // =====================
+    for (Wall wall : walls) {
+        if (!wall.isActive()) {
+            continue;
+        }
+
+        int left = wall.getX();
+        int right = wall.getX() + wall.getWidth();
+        int top = wall.getY();
+        int bottom = wall.getY() + wall.getHeight();
+
+        boolean overlapX = x + pw > left && x < right;
+        boolean overlapY = y + ph > top && y < bottom;
+
+        if (overlapX && overlapY) {
+            if (jumpVelocity >= 0 && prevFeet <= top) {
+                y = top - ph;
+                jumpVelocity = 0;
+                isJumping = false;
+                landed = true;
+            } else if (jumpVelocity < 0 && y >= bottom - 10) {
+                y = bottom;
+                jumpVelocity = 0;
+            } else {
+                if (x + pw/2 < left + (right-left)/2) {
+                    x = left - pw;
+                } else {
+                    x = right;
+                }
+            }
         }
     }
 

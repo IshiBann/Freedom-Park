@@ -137,7 +137,31 @@ public class GamePanel extends JPanel implements Runnable {
                 if (buttons[0].contains(e.getPoint())) {
                     inGameMenuOpen = false;
                     repaint();
-                } else if (buttons[1].contains(e.getPoint()) && homeAction != null) {
+                } else if (buttons[1].contains(e.getPoint())) {
+                    if ((server != null || client != null) && buttons.length > 2) {
+                        stageManager.resetCurrentStage(getLocalPlayer());
+                        synchronized (players) {
+                            for (Player p : players) {
+                                if (p.getPlayerID() != localPlayerID) {
+                                    p.setX(stageManager.getCurrentStage().getSpawnXForPlayer(p.getPlayerID()));
+                                    p.setY(stageManager.getCurrentStage().getSpawnYForPlayer(p.getPlayerID()));
+                                    p.setHasKey(false);
+                                    p.setWaitingAtExit(false);
+                                    p.stopMovement();
+                                }
+                            }
+                        }
+                        gameFinished = false;
+                        if (server != null) {
+                            server.broadcastReset();
+                        }
+                        inGameMenuOpen = false;
+                        repaint();
+                    }
+                } else if (buttons.length > 2 && buttons[2].contains(e.getPoint()) && homeAction != null) {
+                    inGameMenuOpen = false;
+                    homeAction.run();
+                } else if (buttons.length == 2 && buttons[1].contains(e.getPoint()) && homeAction != null) {
                     inGameMenuOpen = false;
                     homeAction.run();
                 }
@@ -478,13 +502,15 @@ public class GamePanel extends JPanel implements Runnable {
         int bw = 240;
         int bh = 48;
         int gap = 16;
-        int totalH = (bh * 2) + gap;
+        int buttonCount = (server != null || client != null) ? 3 : 2;
+        int totalH = (bh * buttonCount) + (gap * (buttonCount - 1));
         int x = (W - bw) / 2;
         int y = H / 2 - totalH / 2 + 20;
-        return new Rectangle[] {
-            new Rectangle(x, y, bw, bh),
-            new Rectangle(x, y + bh + gap, bw, bh)
-        };
+        Rectangle[] rects = new Rectangle[buttonCount];
+        for (int i = 0; i < buttonCount; i++) {
+            rects[i] = new Rectangle(x, y + i * (bh + gap), bw, bh);
+        }
+        return rects;
     }
 
     @Override
@@ -539,7 +565,8 @@ public class GamePanel extends JPanel implements Runnable {
                     p.update(
                         stageManager.getCurrentStage().getPlatforms(),
                         stageManager.getCurrentStage().getBoxes(),
-                        players
+                        players,
+                        stageManager.getCurrentStage().getWalls()
                     );
                 }
             }
@@ -605,6 +632,12 @@ public class GamePanel extends JPanel implements Runnable {
             sb.append(",").append(door.isUnlocked() ? 1 : 0);
         }
 
+        // Pressure plates
+        java.util.List<com.mygame.entity.PressurePlate> plates = stageManager.getCurrentStage().getPressurePlates();
+        for (com.mygame.entity.PressurePlate plate : plates) {
+            sb.append(",").append(plate.isPressed() ? 1 : 0);
+        }
+
         if (server != null) {
             server.broadcast(sb.toString().getBytes());
         }
@@ -649,7 +682,10 @@ public class GamePanel extends JPanel implements Runnable {
         g2d.setColor(new Color(0, 0, 0, 120));
         g2d.fillRoundRect(10, 10, 160, 28, 8, 8);
         g2d.setColor(Color.WHITE);
-        g2d.drawString(stageManager.getCurrentStage().getStageName(), 20, 29);
+        String stageName = stageManager.getCurrentStage().getStageName();
+        if (stageName != null) {
+            g2d.drawString(stageName, 20, 29);
+        }
 
         // Reset hint (top-right)
         g2d.setFont(new java.awt.Font("Arial", java.awt.Font.PLAIN, 14));
@@ -671,10 +707,11 @@ public class GamePanel extends JPanel implements Runnable {
             g2d.fillRect(0, 0, screenWidth, screenHeight);
 
             Rectangle[] buttons = getGameMenuButtonRects();
+            int panelH = buttons.length == 3 ? 340 : 300;
             g2d.setColor(new Color(20, 10, 24, 240));
-            g2d.fillRoundRect(screenWidth / 2 - 280, screenHeight / 2 - 150, 560, 300, 18, 18);
+            g2d.fillRoundRect(screenWidth / 2 - 280, screenHeight / 2 - 150, 560, panelH, 18, 18);
             g2d.setColor(new Color(220, 20, 20, 120));
-            g2d.drawRoundRect(screenWidth / 2 - 280, screenHeight / 2 - 150, 560, 300, 18, 18);
+            g2d.drawRoundRect(screenWidth / 2 - 280, screenHeight / 2 - 150, 560, panelH, 18, 18);
 
             g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 28));
             String title = "MAIN MENU";
@@ -683,7 +720,12 @@ public class GamePanel extends JPanel implements Runnable {
             g2d.drawString(title, screenWidth / 2 - fm.stringWidth(title) / 2, screenHeight / 2 - 95);
 
             drawGameMenuButton(g2d, buttons[0], "RESUME");
-            drawGameMenuButton(g2d, buttons[1], "HOME PAGE");
+            if (buttons.length > 2) {
+                drawGameMenuButton(g2d, buttons[1], "RESTART");
+                drawGameMenuButton(g2d, buttons[2], "HOME PAGE");
+            } else {
+                drawGameMenuButton(g2d, buttons[1], "HOME PAGE");
+            }
         }
     }
 

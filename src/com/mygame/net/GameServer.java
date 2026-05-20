@@ -178,6 +178,10 @@ public class GameServer extends Thread {
         broadcast(("START," + stageIndex).getBytes());
     }
 
+    public void broadcastReset() {
+        broadcast(("RESET").getBytes());
+    }
+
     private byte[] buildLobbyPacket() {
         synchronized (game.getPlayers()) {
             game.setLobbyPlayerCount(game.getPlayers().size());

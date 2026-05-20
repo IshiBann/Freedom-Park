@@ -6,10 +6,10 @@ import java.util.List;
 import com.mygame.entity.Player;
 
 public class StageManager {
-    private List<Stage> stages;
+    protected List<Stage> stages;
     private int currentStageIndex;
     private boolean allStagesCompleted;
-
+    
     public StageManager() {
         stages = new ArrayList<>();
         currentStageIndex = 0;
@@ -19,12 +19,13 @@ public class StageManager {
         loadStages();
     }
 
-    private void loadStages() {
+    protected void loadStages() {
         stages.add(new Stage1());
         stages.add(new Stage2());
         stages.add(new Stage3());
         stages.add(new Stage4());
         stages.add(new Stage5());
+        stages.add(new Credits());
     }
 
     public void update(Player player) {

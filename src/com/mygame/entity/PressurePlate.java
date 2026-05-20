@@ -136,4 +136,27 @@ public class PressurePlate {
     public int getHeight() { return height; }
     public boolean isPressed() { return pressed; }
     public boolean isActivated() { return activated; }
+
+    public void activateFromNetwork() {
+        if (!activated && onPress != null) {
+            onPress.run();
+            activated = true;
+        }
+    }
+
+    public void setPressedFromNetwork(boolean isPressedNow) {
+        if (isPressedNow && !pressed) {
+            pressed = true;
+            if (!activated && onPress != null) {
+                onPress.run();
+                activated = true;
+            }
+        } else if (!isPressedNow && pressed) {
+            pressed = false;
+            if (!latch && activated && onRelease != null) {
+                onRelease.run();
+                activated = false;
+            }
+        }
+    }
 }

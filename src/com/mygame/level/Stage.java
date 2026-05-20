@@ -5,6 +5,7 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -22,6 +23,7 @@ public abstract class Stage {
     protected List<Platform> platforms;
     protected List<Box> boxes;
     protected List<PressurePlate> pressurePlates;
+    protected List<Wall> walls;
 
     protected BufferedImage background;
 
@@ -38,16 +40,33 @@ public abstract class Stage {
     protected final Set<Integer> playersAtExit = new HashSet<>();
 
     public Stage() {
-
         platforms = new ArrayList<>();
         boxes = new ArrayList<>();
         pressurePlates = new ArrayList<>();
+        walls = new ArrayList<>();
 
         playerSpawnX = 100;
         playerSpawnY = 250;
 
         completed = false;
 
+        // !! DO NOT call loadStage() here.
+        // Subclasses must call init() at the end of their own constructor,
+        // AFTER their own fields (e.g. index) have been assigned.
+    }
+
+    /**
+     * Subclasses call this at the end of their constructor, after setting
+     * their own fields. This ensures loadStage() sees the correct values.
+     *
+     * Example:
+     *   public MyStage(int idx) {
+     *       super();
+     *       this.index = idx;  // set fields first
+     *       init();            // then call init()
+     *   }
+     */
+    protected final void init() {
         loadStage();
     }
 
@@ -61,6 +80,7 @@ public abstract class Stage {
         platforms.clear();
         boxes.clear();
         pressurePlates.clear();
+        walls.clear();
         key = null;
         door = null;
         completed = false;
@@ -72,10 +92,10 @@ public abstract class Stage {
     }
 
     public void update(Player player) {
-        update(player, java.util.Collections.singletonList(player));
+        update(player, Collections.singletonList(player));
     }
 
-    public void update(Player player, java.util.List<Player> allPlayers) {
+    public void update(Player player, List<Player> allPlayers) {
         for (PressurePlate plate : pressurePlates) {
             plate.update(allPlayers, boxes);
         }
@@ -107,51 +127,68 @@ public abstract class Stage {
                 if (p == null || !door.isUnlocked() || !door.canEnter(p)) {
                     continue;
                 }
+
                 if (requireAllPlayersToExit) {
                     if (!playersAtExit.contains(p.getPlayerID())) {
                         playersAtExit.add(p.getPlayerID());
                         p.setWaitingAtExit(true);
+                        // Teleport them back to spawn so they don't block others
                         p.setX(playerSpawnX);
                         p.setY(playerSpawnY);
                     }
                 } else {
+                    // Single-exit mode: first player through wins
                     completed = true;
-                    break;
+                    return;
                 }
             }
 
+            // All-players-must-exit mode:
+            // Count only players who have NOT yet reached the exit.
+            // When that number hits zero, everyone is through — stage complete.
             if (requireAllPlayersToExit && !playersAtExit.isEmpty()) {
-                int present = countPresentPlayers(allPlayers);
-                if (playersAtExit.size() >= present && present > 0) {
+                int stillPending = countPendingPlayers(allPlayers);
+                if (stillPending == 0) {
                     completed = true;
                 }
             }
         }
     }
 
-    private int countPresentPlayers(List<Player> allPlayers) {
-        int n = 0;
+    /**
+     * Returns the number of non-null players who have NOT yet reached the exit.
+     * Used to decide when all players have exited in requireAllPlayersToExit mode.
+     *
+     * Previously this counted ALL present players, so completed never triggered
+     * because playersAtExit.size() could never exceed the total player count.
+     */
+    private int countPendingPlayers(List<Player> allPlayers) {
+        int pending = 0;
         for (Player p : allPlayers) {
-            if (p != null) {
-                n++;
+            if (p != null && !p.isWaitingAtExit()) {
+                pending++;
             }
         }
-        return n;
+        return pending;
     }
 
     public void draw(Graphics g) {
-
-        java.awt.Graphics2D g2 = (java.awt.Graphics2D) g;
+        Graphics2D g2 = (Graphics2D) g;
 
         if (background != null) {
             java.awt.Composite oldComposite = g2.getComposite();
-            g2.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 0.75f));
+            g2.setComposite(java.awt.AlphaComposite.getInstance(
+                java.awt.AlphaComposite.SRC_OVER, 0.75f));
             g2.drawImage(background, 0, 0, null);
             g2.setComposite(oldComposite);
         }
 
         for (Platform platform : platforms) {
             platform.draw(g);
+        }
+
+        for (Wall wall : walls) {
+            wall.draw(g);
         }
 
         for (Box box : boxes) {
@@ -171,13 +208,12 @@ public abstract class Stage {
         }
     }
 
-    public void drawKeyHolderOverlay(Graphics2D g2, java.util.List<Player> players) {
+    public void drawKeyHolderOverlay(Graphics2D g2, List<Player> players) {
         if (key != null) {
             key.drawHolderIndicator(g2, players);
         }
     }
 
-    /** Spawn X for multiplayer — spread players so they are not stacked at load. */
     public int getSpawnXForPlayer(int playerId) {
         return playerSpawnX + (playerId % 4) * 48;
     }
@@ -187,68 +223,27 @@ public abstract class Stage {
     }
 
     protected void loadBackground(String backgroundPath) {
-
         try {
-
             background = ImageIO.read(
                 Stage.class.getResourceAsStream(backgroundPath)
             );
-
         } catch (IOException e) {
-
-            System.err.println(
-                "Could not load background: " + backgroundPath
-            );
-
+            System.err.println("Could not load background: " + backgroundPath);
             background = null;
         }
     }
 
-    public List<Platform> getPlatforms() {
-        return platforms;
-    }
-
-    public List<Box> getBoxes() {
-        return boxes;
-    }
-
-    public List<PressurePlate> getPressurePlates() {
-        return pressurePlates;
-    }
-
-    public BufferedImage getBackground() {
-        return background;
-    }
-
-    public int getPlayerSpawnX() {
-        return playerSpawnX;
-    }
-
-    public int getPlayerSpawnY() {
-        return playerSpawnY;
-    }
-
-    public String getStageName() {
-        return stageName;
-    }
-
-    public Key getKey() {
-        return key;
-    }
-
-    public Door getDoor() {
-        return door;
-    }
-
-    public boolean isCompleted() {
-        return completed;
-    }
-
-    public boolean isRequireAllPlayersToExit() {
-        return requireAllPlayersToExit;
-    }
-
-    public int getExitWaitingCount() {
-        return playersAtExit.size();
-    }
+    public List<Platform> getPlatforms()         { return platforms; }
+    public List<Box> getBoxes()                  { return boxes; }
+    public List<PressurePlate> getPressurePlates(){ return pressurePlates; }
+    public List<Wall> getWalls()                 { return walls; }
+    public BufferedImage getBackground()          { return background; }
+    public int getPlayerSpawnX()                 { return playerSpawnX; }
+    public int getPlayerSpawnY()                 { return playerSpawnY; }
+    public String getStageName()                 { return stageName; }
+    public Key getKey()                          { return key; }
+    public Door getDoor()                        { return door; }
+    public boolean isCompleted()                 { return completed; }
+    public boolean isRequireAllPlayersToExit()   { return requireAllPlayersToExit; }
+    public int getExitWaitingCount()             { return playersAtExit.size(); }
 }

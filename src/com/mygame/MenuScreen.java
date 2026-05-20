@@ -747,7 +747,11 @@ public class MenuScreen extends JPanel {
         int bh = 52;
         int gap = 16;
         int panelY = H / 2 - 190;
-        int buttonsY = panelY + 200;
+        int panelH = 360;
+        int checkboxH = 56;
+        int checkboxPad = 20;
+        int checkboxY = panelY + panelH - checkboxH - checkboxPad;
+        int buttonsY = checkboxY - (bh + gap) - 20;
         int x = (W - bw) / 2;
         return new Rectangle[] {
             new Rectangle(x, buttonsY, bw, bh),
@@ -797,13 +801,9 @@ public class MenuScreen extends JPanel {
 
         g2.setFont(tinyFont);
         g2.setColor(new Color(255, 215, 0, 160));
-        String hint = localTestMode
-            ? "Connect to 127.0.0.1:9876 on this PC"
-            : "Enable SAME PC TEST below, or use host LAN IP";
+        String hint = "Enter the host computer's LAN IP address and port";
         fm = g2.getFontMetrics();
         g2.drawString(hint, panelX + (panelW - fm.stringWidth(hint)) / 2, field.y + field.height + 22);
-
-        drawLocalTestCheckbox(g2, getLocalTestCheckboxRect(panelX, panelY, panelW, panelH));
 
         Rectangle[] buttons = getJoinInputButtonRects();
         String[] labels = { "CONNECT", "BACK" };

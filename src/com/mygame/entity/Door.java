@@ -77,11 +77,19 @@ public class Door {
         // Player center must be within the door's width to "enter"
         int playerCenterX = player.getX() + player.getWidth() / 2;
         boolean inDoorCenter = playerCenterX > x + 10 && playerCenterX < x + 54;
-        
-        boolean touchingY = 
+
+        boolean touchingY =
                 player.getY() < y + 96 &&
                 player.getY() + player.getHeight() > y;
 
         return unlocked && inDoorCenter && touchingY;
+    }
+
+    public void unlock() {
+        unlocked = true;
+    }
+
+    public void lock() {
+        unlocked = false;
     }
 }
