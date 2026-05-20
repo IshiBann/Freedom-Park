@@ -98,7 +98,9 @@ public class GamePanel extends JPanel implements Runnable {
                 if (p != null) p.keyPressed(e);
 
                 if (e.getKeyCode() == KeyEvent.VK_R) {
-                    if (p != null) stageManager.resetCurrentStage(p);
+                    synchronized (players) {
+                        stageManager.resetCurrentStage(players);
+                    }
                     gameFinished = false;
                 }
 
@@ -596,17 +598,17 @@ public class GamePanel extends JPanel implements Runnable {
 
         // Key and door state
         com.mygame.entity.Key key = stageManager.getCurrentStage().getKey();
-        if (key != null) {
-            sb.append(",").append(key.isUsed() ? 1 : 0);
-        }
+        sb.append(",").append((key != null && key.isUsed()) ? 1 : 0);
 
         com.mygame.entity.Door door = stageManager.getCurrentStage().getDoor();
-        if (door != null) {
-            sb.append(",").append(door.isUnlocked() ? 1 : 0);
-        }
+        sb.append(",").append((door != null && door.isUnlocked()) ? 1 : 0);
 
         if (server != null) {
             server.broadcast(sb.toString().getBytes());
+        }
+
+        if (stageManager.isAllStagesCompleted()) {
+            gameFinished = true;
         }
     }
 

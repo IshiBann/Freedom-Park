@@ -87,14 +87,14 @@ public class StageManager {
     }
 
     /**
-     * Resets the current stage to its initial state and respawns the player.
+     * Resets the current stage to its initial state and respawns all players.
      */
-    public void resetCurrentStage(Player player) {
+    public void resetCurrentStage(List<Player> allPlayers) {
         getCurrentStage().reset();
-        player.setX(getCurrentStage().getSpawnXForPlayer(player.getPlayerID()));
-        player.setY(getCurrentStage().getSpawnYForPlayer(player.getPlayerID()));
-        player.setHasKey(false);
-        player.setWaitingAtExit(false);
-        player.stopMovement();
+        for (Player p : allPlayers) {
+            if (p != null) {
+                resetPlayer(p);
+            }
+        }
     }
 }

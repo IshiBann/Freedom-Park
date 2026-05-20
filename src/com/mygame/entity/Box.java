@@ -36,7 +36,7 @@ public class Box {
         }
     }
 
-    public void update(Player player, List<Platform> platforms, List<Box> boxes) {
+    public void update(List<Player> players, List<Platform> platforms, List<Box> boxes) {
 
         // =====================
         // GRAVITY
@@ -115,25 +115,35 @@ public class Box {
         }
 
         // =====================
-        // PLAYER PUSHING (FIXED)
+        // PLAYER PUSHING (FIXED for Multiplayer)
         // =====================
-        boolean overlapX =
-                player.getX() < x + width &&
-                player.getX() + player.getWidth() > x;
+        int pushDir = 0; // 1 for right, -1 for left
+        for (Player player : players) {
+            if (player == null || player.isWaitingAtExit()) continue;
 
-        boolean overlapY =
-                player.getY() < y + height &&
-                player.getY() + player.getHeight() > y;
+            boolean overlapX =
+                    player.getX() < x + width &&
+                    player.getX() + player.getWidth() > x;
 
-        if (overlapX && overlapY) {
+            boolean overlapY =
+                    player.getY() < y + height &&
+                    player.getY() + player.getHeight() > y;
 
-            // push only if coming from correct side
-            if (player.isMovingRight() && player.getX() < x) {
-                pushHorizontally(3, boxes);
+            if (overlapX && overlapY) {
+                // push only if coming from correct side
+                if (player.isMovingRight() && player.getX() < x) {
+                    pushDir += 1;
+                }
+                else if (player.isMovingLeft() && player.getX() > x) {
+                    pushDir -= 1;
+                }
             }
-            else if (player.isMovingLeft() && player.getX() > x) {
-                pushHorizontally(-3, boxes);
-            }
+        }
+
+        if (pushDir > 0) {
+            pushHorizontally(3, boxes);
+        } else if (pushDir < 0) {
+            pushHorizontally(-3, boxes);
         }
     }
 

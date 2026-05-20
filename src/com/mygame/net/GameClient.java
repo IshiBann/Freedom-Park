@@ -136,36 +136,33 @@ public class GameClient extends Thread {
             b.setY(y);
         }
 
+        int keyTokenIndex = 30 + (boxes.size() * 2);
+        int doorTokenIndex = keyTokenIndex + 1;
+
         // Key state (isUsed)
         com.mygame.entity.Key key = game.getStageManager().getCurrentStage().getKey();
-        if (key != null) {
-            int keyTokenIndex = 30 + (boxes.size() * 2);
-            if (keyTokenIndex < tokens.length) {
-                boolean keyUsed = tokens[keyTokenIndex].equals("1");
+        if (key != null && keyTokenIndex < tokens.length) {
+            boolean keyUsed = tokens[keyTokenIndex].equals("1");
 
-                int holder = -1;
-                if (!keyUsed) {
-                    synchronized (game.getPlayers()) {
-                        for (Player p : game.getPlayers()) {
-                            if (p.hasKey()) {
-                                holder = p.getPlayerID();
-                                break;
-                            }
+            int holder = -1;
+            if (!keyUsed) {
+                synchronized (game.getPlayers()) {
+                    for (Player p : game.getPlayers()) {
+                        if (p.hasKey()) {
+                            holder = p.getPlayerID();
+                            break;
                         }
                     }
                 }
-                key.syncFromNetwork(holder, keyUsed);
             }
+            key.syncFromNetwork(holder, keyUsed);
         }
 
         // Door state
         com.mygame.entity.Door door = game.getStageManager().getCurrentStage().getDoor();
-        if (door != null) {
-            int doorTokenIndex = 30 + (boxes.size() * 2) + 1;
-            if (doorTokenIndex < tokens.length) {
-                boolean doorUnlocked = tokens[doorTokenIndex].equals("1");
-                door.syncFromNetwork(doorUnlocked);
-            }
+        if (door != null && doorTokenIndex < tokens.length) {
+            boolean doorUnlocked = tokens[doorTokenIndex].equals("1");
+            door.syncFromNetwork(doorUnlocked);
         }
     }
 

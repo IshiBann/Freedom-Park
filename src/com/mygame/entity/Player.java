@@ -248,7 +248,7 @@ public void update(List<Platform> platforms, List<Box> boxes, List<Player> playe
     // PLAYER COLLISION (Pico Park Style)
     // =====================
     for (Player other : players) {
-        if (other == this) continue;
+        if (other == this || other == null || other.isWaitingAtExit()) continue;
 
         int left = other.getX();
         int right = other.getX() + other.getWidth();

@@ -81,7 +81,7 @@ public abstract class Stage {
         }
 
         for (Box box : boxes) {
-            box.update(player, platforms, boxes);
+            box.update(allPlayers, platforms, boxes);
         }
 
         if (key != null) {
