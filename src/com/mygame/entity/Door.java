@@ -63,10 +63,6 @@ public class Door {
         else {
             g.drawImage(lockedImage, x, y, 64, 96, null);
         }
-        
-        // Collision box highlight (Blue) - moved inside the draw method!
-        g.setColor(java.awt.Color.BLUE);
-        g.drawRect(x, y, 64, 96);
     }
 
     public boolean isUnlocked() {

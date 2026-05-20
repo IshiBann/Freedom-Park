@@ -66,9 +66,6 @@ public class Player {
         } else {
             g.drawImage(frame, x, y, null);
         }
-
-        g.setColor(java.awt.Color.RED);
-        g.drawRect(x, y, getSpriteWidth(), getSpriteHeight()); 
     }
 
     private void loadAnimations() {

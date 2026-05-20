@@ -162,16 +162,10 @@ public class Box {
     }
 
     public void draw(Graphics g) {
-        if (image != null) {
-            g.drawImage(image, (int)x, (int)y, width, height, null);
-        } else {
-            g.setColor(new Color(139, 69, 19));
-            g.fillRect((int)x, (int)y, width, height);
+        if (sprite != null) {
+            g.drawImage(sprite, (int) x, (int) y, width, height, null);
         }
-        // Collision box
-        g.setColor(java.awt.Color.MAGENTA);
-        g.drawRect((int)x, (int)y, width, height);
-    }
+        }
 
     public int getX() { return (int)x; }
     public int getY() { return (int)y; }
