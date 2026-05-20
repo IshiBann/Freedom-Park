@@ -45,7 +45,7 @@ public class GameClient extends Thread {
                 e.printStackTrace();
                 continue;
             }
-            parsePacket(packet.getData(), packet.getLength());
+            parsePacket(packet.getData());
         }
     }
 
@@ -56,10 +56,9 @@ public class GameClient extends Thread {
         }
     }
 
-    private void parsePacket(byte[] data, int length) {
-        String message = new String(data, 0, length).trim();
+    private void parsePacket(byte[] data) {
+        String message = new String(data).trim();
         String[] tokens = message.split(",");
-        if (tokens.length < 1) return;
         String type = tokens[0];
 
         if (type.equals("JOINED")) {
@@ -103,12 +102,9 @@ public class GameClient extends Thread {
         } else if (type.equals("STATE")) {
             handleWorldState(tokens);
         } else if (type.equals("CHAT")) {
-            String[] chatTokens = message.split(",", 3);
-            if (chatTokens.length >= 3) {
-                int senderId = Integer.parseInt(chatTokens[1]);
-                String msg = chatTokens[2];
-                game.onChatMessageReceived(senderId, msg);
-            }
+            int senderId = Integer.parseInt(tokens[1]);
+            String msg = message.substring(message.indexOf(',', message.indexOf(',') + 1) + 1);
+            game.onChatMessageReceived(senderId, msg);
         }
     }
 
