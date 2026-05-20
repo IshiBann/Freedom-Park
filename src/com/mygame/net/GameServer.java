@@ -210,6 +210,10 @@ public class GameServer extends Thread {
         broadcast(("RESET").getBytes(StandardCharsets.UTF_8));
     }
 
+    public void broadcastHome() {
+        broadcast(("HOME").getBytes(StandardCharsets.UTF_8));
+    }
+
     private byte[] buildLobbyPacket() {
         synchronized (game.getPlayers()) {
             game.setLobbyPlayerCount(game.getPlayers().size());

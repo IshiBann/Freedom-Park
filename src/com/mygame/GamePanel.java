@@ -445,6 +445,7 @@ public class GamePanel extends JPanel implements Runnable {
         }
 
         if (server != null) {
+            server.broadcastHome();
             server.stopServer();
             server = null;
         }
@@ -458,6 +459,14 @@ public class GamePanel extends JPanel implements Runnable {
         lobbyStageIndex = 0;
         lobbyPlayerCount = 1;
         repaint();
+    }
+
+    public void onHomePacketReceived() {
+        if (homeAction != null) {
+            javax.swing.SwingUtilities.invokeLater(() -> {
+                homeAction.run();
+            });
+        }
     }
 
     public void startLobbyGame(int stageIndex) {
@@ -559,6 +568,17 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void update() {
+        if (stageManager.getCurrentStage() instanceof com.mygame.level.Credits) {
+            gameFinished = true;
+        }
+
+        if (gameFinished) {
+            if (server != null) {
+                broadcastState();
+            }
+            return;
+        }
+
         if (client != null) {
             // Client sends its input to server
             Player lp = getLocalPlayer();
@@ -698,37 +718,39 @@ public class GamePanel extends JPanel implements Runnable {
 
         stageManager.draw(g2d);
         
-        synchronized(players) {
-            for (Player p : players) {
-                if (!p.isWaitingAtExit()) {
-                    p.draw(g2d);
+        if (!gameFinished) {
+            synchronized(players) {
+                for (Player p : players) {
+                    if (!p.isWaitingAtExit()) {
+                        p.draw(g2d);
+                    }
                 }
             }
-        }
 
-        java.util.List<Player> playersSnapshot;
-        synchronized (players) {
-            playersSnapshot = new java.util.ArrayList<>(players);
-        }
-        stageManager.getCurrentStage().drawKeyHolderOverlay(g2d, playersSnapshot);
-        drawKeyHolderHud(g2d, playersSnapshot);
-        drawExitWaitingHud(g2d, playersSnapshot);
+            java.util.List<Player> playersSnapshot;
+            synchronized (players) {
+                playersSnapshot = new java.util.ArrayList<>(players);
+            }
+            stageManager.getCurrentStage().drawKeyHolderOverlay(g2d, playersSnapshot);
+            drawKeyHolderHud(g2d, playersSnapshot);
+            drawExitWaitingHud(g2d, playersSnapshot);
 
-        Player localPlayer = getLocalPlayer();
-        if (localPlayer != null && !localPlayer.isWaitingAtExit() && shouldShowLocalPlayerIndicator()) {
-            drawLocalPlayerIndicator(g2d, localPlayer);
-        }
+            Player localPlayer = getLocalPlayer();
+            if (localPlayer != null && !localPlayer.isWaitingAtExit() && shouldShowLocalPlayerIndicator()) {
+                drawLocalPlayerIndicator(g2d, localPlayer);
+            }
 
-        // HUD
-        g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 16));
+            // HUD
+            g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 16));
 
-        // Stage name (top-left)
-        g2d.setColor(new Color(0, 0, 0, 120));
-        g2d.fillRoundRect(10, 10, 160, 28, 8, 8);
-        g2d.setColor(Color.WHITE);
-        String stageName = stageManager.getCurrentStage().getStageName();
-        if (stageName != null) {
-            g2d.drawString(stageName, 20, 29);
+            // Stage name (top-left)
+            g2d.setColor(new Color(0, 0, 0, 120));
+            g2d.fillRoundRect(10, 10, 160, 28, 8, 8);
+            g2d.setColor(Color.WHITE);
+            String stageName = stageManager.getCurrentStage().getStageName();
+            if (stageName != null) {
+                g2d.drawString(stageName, 20, 29);
+            }
         }
 
 

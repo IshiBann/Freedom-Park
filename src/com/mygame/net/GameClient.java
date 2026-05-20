@@ -107,6 +107,8 @@ public class GameClient extends Thread {
             int senderId = Integer.parseInt(tokens[1]);
             String msg = message.substring(message.indexOf(',', message.indexOf(',') + 1) + 1);
             game.onChatMessageReceived(senderId, msg);
+        } else if (type.equals("HOME")) {
+            game.onHomePacketReceived();
         }
     }
 
