@@ -45,7 +45,7 @@ public class GameClient extends Thread {
                 e.printStackTrace();
                 continue;
             }
-            parsePacket(packet.getData());
+            parsePacket(packet.getData(), packet.getLength());
         }
     }
 
@@ -56,9 +56,10 @@ public class GameClient extends Thread {
         }
     }
 
-    private void parsePacket(byte[] data) {
-        String message = new String(data).trim();
+    private void parsePacket(byte[] data, int length) {
+        String message = new String(data, 0, length).trim();
         String[] tokens = message.split(",");
+        if (tokens.length < 1) return;
         String type = tokens[0];
 
         if (type.equals("JOINED")) {
