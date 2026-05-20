@@ -369,7 +369,7 @@ public class MenuScreen extends JPanel {
         if (menuState == MenuState.JOIN_INPUT) {
             int panelX = getWidth() / 2 - 260;
             int panelY = getHeight() / 2 - 190;
-            return getLocalTestCheckboxRect(panelX, panelY, 520, 360).contains(p);
+            return getLocalTestCheckboxRect(panelX, panelY, 520, 420).contains(p);
         }
         return false;
     }
@@ -765,7 +765,7 @@ public class MenuScreen extends JPanel {
 
     private void drawJoinInput(Graphics2D g2, int W, int H) {
         int panelW = 520;
-        int panelH = 360;
+        int panelH = 420;
         int panelX = (W - panelW) / 2;
         int panelY = H / 2 - 190;
 
