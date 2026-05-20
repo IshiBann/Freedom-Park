@@ -176,18 +176,6 @@ public void update(List<Platform> platforms, List<Box> boxes, List<Player> playe
 
     boolean landed = false;
 
-    // Screen Boundary (Vertical)
-    if (y < 0) {
-        y = 0;
-        jumpVelocity = 0;
-    }
-    if (y + ph > 800) {
-        y = 800 - ph;
-        jumpVelocity = 0;
-        isJumping = false;
-        landed = true;
-    }
-
     // =====================
     // PLATFORM COLLISION
     // =====================
