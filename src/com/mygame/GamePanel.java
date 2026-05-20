@@ -251,7 +251,7 @@ public class GamePanel extends JPanel implements Runnable {
     public void sendChatMessage(String message) {
         if (server != null) {
             String data = "CHAT,0," + message;
-            server.broadcast(data.getBytes());
+            server.broadcast(data.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             onChatMessageReceived(0, message);
         } else if (client != null) {
             client.sendChatMessage(message);
@@ -679,7 +679,7 @@ public class GamePanel extends JPanel implements Runnable {
         }
 
         if (server != null) {
-            server.broadcast(sb.toString().getBytes());
+            server.broadcast(sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
         }
     }
 

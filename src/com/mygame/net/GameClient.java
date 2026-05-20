@@ -6,6 +6,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 
 import com.mygame.GamePanel;
 import com.mygame.entity.Player;
@@ -57,7 +58,7 @@ public class GameClient extends Thread {
     }
 
     private void parsePacket(byte[] data, int length) {
-        String message = new String(data, 0, length).trim();
+        String message = new String(data, 0, length, StandardCharsets.UTF_8).trim();
         String[] tokens = message.split(",");
         if (tokens.length < 1) return;
         String type = tokens[0];
@@ -252,13 +253,13 @@ public class GameClient extends Thread {
     }
 
     private void sendJoinRequest() {
-        sendData("JOIN".getBytes());
+        sendData("JOIN".getBytes(StandardCharsets.UTF_8));
     }
 
     public void sendInput(boolean left, boolean right, boolean jump) {
         if (playerID == -1) return;
         String msg = "INP," + playerID + "," + (left ? "1" : "0") + "," + (right ? "1" : "0") + "," + (jump ? "1" : "0");
-        sendData(msg.getBytes());
+        sendData(msg.getBytes(StandardCharsets.UTF_8));
     }
 
     public void sendData(byte[] data) {
@@ -273,6 +274,6 @@ public class GameClient extends Thread {
     public void sendChatMessage(String msg) {
         if (playerID == -1) return;
         String data = "CHAT," + playerID + "," + msg;
-        sendData(data.getBytes());
+        sendData(data.getBytes(StandardCharsets.UTF_8));
     }
 }

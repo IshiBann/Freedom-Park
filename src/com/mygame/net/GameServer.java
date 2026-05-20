@@ -6,6 +6,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -86,7 +87,7 @@ public class GameServer extends Thread {
     }
 
     private void parsePacket(byte[] data, int length, InetAddress address, int port) {
-        String message = new String(data, 0, length).trim();
+        String message = new String(data, 0, length, StandardCharsets.UTF_8).trim();
         String[] tokens = message.split(",");
         if (tokens.length < 1) return;
         String type = tokens[0];
@@ -157,7 +158,8 @@ public class GameServer extends Thread {
         System.out.println("Chat received from Player " + (senderId + 1) + ": " + msg);
 
         // Broadcast the entire CHAT message to all clients
-        broadcast(fullMessage.getBytes());
+        String broadcastData = "CHAT," + senderId + "," + msg;
+        broadcast(broadcastData.getBytes(StandardCharsets.UTF_8));
         
         // Notify local GamePanel (Host)
         game.onChatMessageReceived(senderId, msg);
@@ -194,11 +196,11 @@ public class GameServer extends Thread {
     }
 
     public void broadcastStart(int stageIndex) {
-        broadcast(("START," + stageIndex).getBytes());
+        broadcast(("START," + stageIndex).getBytes(StandardCharsets.UTF_8));
     }
 
     public void broadcastReset() {
-        broadcast(("RESET").getBytes());
+        broadcast(("RESET").getBytes(StandardCharsets.UTF_8));
     }
 
     private byte[] buildLobbyPacket() {
@@ -209,7 +211,7 @@ public class GameServer extends Thread {
             for (Player p : game.getPlayers()) {
                 msg.append(",").append(p.getPlayerID());
             }
-            return msg.toString().getBytes();
+            return msg.toString().getBytes(StandardCharsets.UTF_8);
         }
     }
 
