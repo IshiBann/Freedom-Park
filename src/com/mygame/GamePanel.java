@@ -126,6 +126,13 @@ public class GamePanel extends JPanel implements Runnable {
         this.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
+                if (gameFinished) {
+                    if (getGameClearHomeButtonRect().contains(e.getPoint()) && homeAction != null) {
+                        homeAction.run();
+                    }
+                    return;
+                }
+
                 if (!inGameMenuOpen) {
                     return;
                 }
@@ -525,6 +532,12 @@ public class GamePanel extends JPanel implements Runnable {
         return rects;
     }
 
+    private Rectangle getGameClearHomeButtonRect() {
+        int bw = 240;
+        int bh = 48;
+        return new Rectangle(screenWidth / 2 - bw / 2, screenHeight / 2 + 50, bw, bh);
+    }
+
     @Override
     public void run() {
         double drawInterval = 1000000000 / 60;
@@ -720,11 +733,16 @@ public class GamePanel extends JPanel implements Runnable {
 
 
         if (gameFinished) {
+            g2d.setColor(new Color(0, 0, 0, 150));
+            g2d.fillRect(0, 0, screenWidth, screenHeight);
+
             g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 48));
             g2d.setColor(new Color(0, 0, 0, 160));
-            g2d.fillRoundRect(screenWidth / 2 - 160, screenHeight / 2 - 50, 320, 70, 16, 16);
+            g2d.fillRoundRect(screenWidth / 2 - 160, screenHeight / 2 - 100, 320, 70, 16, 16);
             g2d.setColor(Color.WHITE);
-            g2d.drawString("Game Clear!", screenWidth / 2 - 140, screenHeight / 2 + 8);
+            g2d.drawString("Game Clear!", screenWidth / 2 - 140, screenHeight / 2 - 42);
+
+            drawGameMenuButton(g2d, getGameClearHomeButtonRect(), "HOME PAGE");
         }
 
         if (inGameMenuOpen) {
