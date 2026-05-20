@@ -68,8 +68,7 @@ public class Player {
             g.drawImage(frame, x, y, null);
         }
 
-        g.setColor(java.awt.Color.RED);
-        g.drawRect(x, y, getSpriteWidth(), getSpriteHeight()); 
+
     }
 
     private void loadAnimations() {
@@ -300,6 +299,13 @@ public void update(List<Platform> platforms, List<Box> boxes, List<Player> playe
             }
         }
     }
+
+    // =====================
+    // SCREEN BOUNDARY CLAMP
+    // =====================
+    int screenWidth = 1200;
+    if (x < 0) x = 0;
+    if (x + pw > screenWidth) x = screenWidth - pw;
 
     // =====================
     // ANIMATION

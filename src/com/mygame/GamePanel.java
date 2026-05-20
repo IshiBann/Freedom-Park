@@ -574,6 +574,25 @@ public class GamePanel extends JPanel implements Runnable {
             if (server != null) {
                 broadcastState();
             }
+
+            // =====================
+            // VOID / FELL OFF SCREEN
+            // =====================
+            boolean anyFell = false;
+            synchronized(players) {
+                for (Player p : players) {
+                    if (p.getY() > screenHeight) {
+                        anyFell = true;
+                        break;
+                    }
+                }
+            }
+            if (anyFell) {
+                Player fellLp = getLocalPlayer();
+                if (fellLp != null) {
+                    stageManager.resetCurrentStage(fellLp);
+                }
+            }
         } else {
             // Client side: positions are set by server, but we tick animations locally
             synchronized(players) {
