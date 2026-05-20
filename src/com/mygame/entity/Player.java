@@ -160,6 +160,12 @@ public void update(List<Platform> platforms, List<Box> boxes, List<Player> playe
     if (movingLeft)  x -= speed;
     if (movingRight) x += speed;
 
+    // Screen Boundary (Horizontal)
+    int pw = getSpriteWidth();
+    int ph = getSpriteHeight();
+    if (x < 0) x = 0;
+    if (x + pw > 1200) x = 1200 - pw;
+
     // =====================
     // GRAVITY
     // =====================
@@ -167,14 +173,23 @@ public void update(List<Platform> platforms, List<Box> boxes, List<Player> playe
 
     int deltaY = (int) jumpVelocity;
 
-    int pw = getSpriteWidth();
-    int ph = getSpriteHeight();
-
     int prevFeet = y + ph;
 
     y += deltaY;
 
     boolean landed = false;
+
+    // Screen Boundary (Vertical)
+    if (y < 0) {
+        y = 0;
+        jumpVelocity = 0;
+    }
+    if (y + ph > 800) {
+        y = 800 - ph;
+        jumpVelocity = 0;
+        isJumping = false;
+        landed = true;
+    }
 
     // =====================
     // PLATFORM COLLISION
