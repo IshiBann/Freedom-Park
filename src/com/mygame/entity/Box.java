@@ -162,10 +162,10 @@ public class Box {
     }
 
     public void draw(Graphics g) {
-        if (sprite != null) {
-            g.drawImage(sprite, (int) x, (int) y, width, height, null);
+        if (image != null) {
+            g.drawImage(image, (int) x, (int) y, width, height, null);
         }
-        }
+    }
 
     public int getX() { return (int)x; }
     public int getY() { return (int)y; }
