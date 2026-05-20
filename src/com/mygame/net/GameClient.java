@@ -276,4 +276,7 @@ public class GameClient extends Thread {
         String data = "CHAT," + playerID + "," + msg;
         sendData(data.getBytes(StandardCharsets.UTF_8));
     }
+    public void sendResetRequest() {
+        sendData("RESET".getBytes(StandardCharsets.UTF_8));
+    }
 }

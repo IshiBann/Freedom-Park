@@ -36,7 +36,7 @@ public class Box {
         }
     }
 
-    public void update(Player player, List<Platform> platforms, List<Box> boxes) {
+    public void update(List<Player> players, List<Platform> platforms, List<Box> boxes) {
 
         // =====================
         // GRAVITY
@@ -117,22 +117,25 @@ public class Box {
         // =====================
         // PLAYER PUSHING (FIXED)
         // =====================
-        boolean overlapX =
-                player.getX() < x + width &&
-                player.getX() + player.getWidth() > x;
+        for (Player player : players) {
+            boolean overlapX =
+                    player.getX() < x + width &&
+                    player.getX() + player.getWidth() > x;
 
-        boolean overlapY =
-                player.getY() < y + height &&
-                player.getY() + player.getHeight() > y;
+            boolean overlapY =
+                    player.getY() < y + height &&
+                    player.getY() + player.getHeight() > y;
 
-        if (overlapX && overlapY) {
-
-            // push only if coming from correct side
-            if (player.isMovingRight() && player.getX() < x) {
-                pushHorizontally(3, boxes);
-            }
-            else if (player.isMovingLeft() && player.getX() > x) {
-                pushHorizontally(-3, boxes);
+            if (overlapX && overlapY) {
+                // push only if coming from correct side
+                if (player.isMovingRight() && player.getX() < x) {
+                    pushHorizontally(3, boxes);
+                    break;
+                }
+                else if (player.isMovingLeft() && player.getX() > x) {
+                    pushHorizontally(-3, boxes);
+                    break;
+                }
             }
         }
     }

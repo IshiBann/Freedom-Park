@@ -98,6 +98,8 @@ public class GameServer extends Thread {
             handleInput(tokens);
         } else if (type.equals("CHAT")) {
             handleChat(tokens, message);
+        } else if (type.equals("RESET")) {
+            handleResetRequest();
         }
     }
 
@@ -193,6 +195,11 @@ public class GameServer extends Thread {
         for (ClientInfo c : clients) {
             sendData(data, c.address, c.port);
         }
+    }
+
+    private void handleResetRequest() {
+        System.out.println("Reset request received from client.");
+        game.requestReset();
     }
 
     public void broadcastStart(int stageIndex) {

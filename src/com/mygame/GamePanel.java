@@ -139,26 +139,17 @@ public class GamePanel extends JPanel implements Runnable {
                     inGameMenuOpen = false;
                     repaint();
                 } else if (buttons[1].contains(e.getPoint())) {
-                    if ((server != null || client != null) && buttons.length > 2) {
+                    if (server != null) {
+                        requestReset();
+                    } else if (client != null) {
+                        client.sendResetRequest();
+                    } else {
+                        // Single player
                         stageManager.resetCurrentStage(getLocalPlayer());
-                        synchronized (players) {
-                            for (Player p : players) {
-                                if (p.getPlayerID() != localPlayerID) {
-                                    p.setX(stageManager.getCurrentStage().getSpawnXForPlayer(p.getPlayerID()));
-                                    p.setY(stageManager.getCurrentStage().getSpawnYForPlayer(p.getPlayerID()));
-                                    p.setHasKey(false);
-                                    p.setWaitingAtExit(false);
-                                    p.stopMovement();
-                                }
-                            }
-                        }
                         gameFinished = false;
-                        if (server != null) {
-                            server.broadcastReset();
-                        }
-                        inGameMenuOpen = false;
-                        repaint();
                     }
+                    inGameMenuOpen = false;
+                    repaint();
                 } else if (buttons.length > 2 && buttons[2].contains(e.getPoint()) && homeAction != null) {
                     inGameMenuOpen = false;
                     homeAction.run();
@@ -242,9 +233,28 @@ public class GamePanel extends JPanel implements Runnable {
         this.chatListener = listener;
     }
 
-    public void onChatMessageReceived(int playerID, String message) {
+    public void onChatMessageReceived(int id, String msg) {
         if (chatListener != null) {
-            chatListener.accept(playerID, message);
+            chatListener.accept(id, msg);
+        }
+    }
+
+    public void requestReset() {
+        stageManager.resetCurrentStage(getLocalPlayer());
+        synchronized (players) {
+            for (Player p : players) {
+                if (p.getPlayerID() != localPlayerID) {
+                    p.setX(stageManager.getCurrentStage().getSpawnXForPlayer(p.getPlayerID()));
+                    p.setY(stageManager.getCurrentStage().getSpawnYForPlayer(p.getPlayerID()));
+                    p.setHasKey(false);
+                    p.setWaitingAtExit(false);
+                    p.stopMovement();
+                }
+            }
+        }
+        gameFinished = false;
+        if (server != null) {
+            server.broadcastReset();
         }
     }
 
