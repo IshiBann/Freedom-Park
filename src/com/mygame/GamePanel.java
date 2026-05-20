@@ -98,10 +98,6 @@ public class GamePanel extends JPanel implements Runnable {
                 Player p = getLocalPlayer();
                 if (p != null) p.keyPressed(e);
 
-                if (e.getKeyCode() == KeyEvent.VK_R) {
-                    if (p != null) stageManager.resetCurrentStage(p);
-                    gameFinished = false;
-                }
 
                 if (e.getKeyCode() == KeyEvent.VK_F11) {
                     JFrame topFrame = (JFrame) javax.swing.SwingUtilities.getWindowAncestor(GamePanel.this);
@@ -138,22 +134,7 @@ public class GamePanel extends JPanel implements Runnable {
                 if (buttons[0].contains(e.getPoint())) {
                     inGameMenuOpen = false;
                     repaint();
-                } else if (buttons[1].contains(e.getPoint())) {
-                    if (server != null) {
-                        requestReset();
-                    } else if (client != null) {
-                        client.sendResetRequest();
-                    } else {
-                        // Single player
-                        stageManager.resetCurrentStage(getLocalPlayer());
-                        gameFinished = false;
-                    }
-                    inGameMenuOpen = false;
-                    repaint();
-                } else if (buttons.length > 2 && buttons[2].contains(e.getPoint()) && homeAction != null) {
-                    inGameMenuOpen = false;
-                    homeAction.run();
-                } else if (buttons.length == 2 && buttons[1].contains(e.getPoint()) && homeAction != null) {
+                } else if (buttons[1].contains(e.getPoint()) && homeAction != null) {
                     inGameMenuOpen = false;
                     homeAction.run();
                 }
@@ -533,7 +514,7 @@ public class GamePanel extends JPanel implements Runnable {
         int bw = 240;
         int bh = 48;
         int gap = 16;
-        int buttonCount = (server != null || client != null) ? 3 : 2;
+        int buttonCount = 2;
         int totalH = (bh * buttonCount) + (gap * (buttonCount - 1));
         int x = (W - bw) / 2;
         int y = H / 2 - totalH / 2 + 20;
@@ -737,12 +718,6 @@ public class GamePanel extends JPanel implements Runnable {
             g2d.drawString(stageName, 20, 29);
         }
 
-        // Reset hint (top-right)
-        g2d.setFont(new java.awt.Font("Arial", java.awt.Font.PLAIN, 14));
-        g2d.setColor(new Color(0, 0, 0, 120));
-        g2d.fillRoundRect(screenWidth - 110, 10, 100, 28, 8, 8);
-        g2d.setColor(new Color(255, 220, 80));
-        g2d.drawString("R \u2014 Reset", screenWidth - 100, 29);
 
         if (gameFinished) {
             g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 48));
@@ -770,12 +745,7 @@ public class GamePanel extends JPanel implements Runnable {
             g2d.drawString(title, screenWidth / 2 - fm.stringWidth(title) / 2, screenHeight / 2 - 95);
 
             drawGameMenuButton(g2d, buttons[0], "RESUME");
-            if (buttons.length > 2) {
-                drawGameMenuButton(g2d, buttons[1], "RESTART");
-                drawGameMenuButton(g2d, buttons[2], "HOME PAGE");
-            } else {
-                drawGameMenuButton(g2d, buttons[1], "HOME PAGE");
-            }
+            drawGameMenuButton(g2d, buttons[1], "HOME PAGE");
         }
     }
 
