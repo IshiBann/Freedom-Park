@@ -532,7 +532,11 @@ public class GamePanel extends JPanel implements Runnable {
             }
 
             synchronized(players) {
-                for (Player p : players) {
+                // Sort bottom-to-top so lower players run first and set carriedThisFrame
+                // on the players above them before those players update themselves.
+                java.util.List<Player> sortedPlayers = new java.util.ArrayList<>(players);
+                sortedPlayers.sort((a, b) -> b.getY() - a.getY()); // higher Y = lower on screen first
+                for (Player p : sortedPlayers) {
                     if (p.isWaitingAtExit()) {
                         continue;
                     }
@@ -541,6 +545,16 @@ public class GamePanel extends JPanel implements Runnable {
                         stageManager.getCurrentStage().getBoxes(),
                         players
                     );
+                }
+            }
+
+            // Reset stage if any player falls into the void
+            synchronized(players) {
+                for (Player p : players) {
+                    if (p.getY() > screenHeight + 100) {
+                        stageManager.resetCurrentStage(p);
+                        break;
+                    }
                 }
             }
 

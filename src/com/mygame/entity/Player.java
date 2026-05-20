@@ -26,6 +26,7 @@ public class Player {
     private boolean hasKey = false;
     private boolean waitingAtExit = false;
     private boolean jumpRequested = false;
+    private boolean carriedThisFrame = false;
     private Animation walkAnim;
     private BufferedImage idleFrame;
     private BufferedImage jumpIcon;
@@ -66,9 +67,6 @@ public class Player {
         } else {
             g.drawImage(frame, x, y, null);
         }
-
-        g.setColor(java.awt.Color.RED);
-        g.drawRect(x, y, getSpriteWidth(), getSpriteHeight()); 
     }
 
     private void loadAnimations() {
@@ -157,8 +155,27 @@ public void update(List<Platform> platforms, List<Box> boxes, List<Player> playe
     // =====================
     // HORIZONTAL MOVE
     // =====================
-    if (movingLeft)  x -= speed;
-    if (movingRight) x += speed;
+    if (!carriedThisFrame) {
+        if (movingLeft)  x -= speed;
+        if (movingRight) x += speed;
+    }
+
+    // =====================
+    // CARRY PLAYERS ON TOP
+    // =====================
+    if (movingLeft || movingRight) {
+        int dx = movingLeft ? -speed : speed;
+        for (Player other : players) {
+            if (other == this) continue;
+            boolean overlapX = other.getX() + other.getWidth() > x &&
+                               other.getX() < x + getSpriteWidth();
+            boolean sittingOnTop = Math.abs((other.getY() + other.getHeight()) - y) <= 4;
+            if (overlapX && sittingOnTop) {
+                other.x += dx;
+                other.carriedThisFrame = true;
+            }
+        }
+    }
 
     // =====================
     // GRAVITY
@@ -169,6 +186,14 @@ public void update(List<Platform> platforms, List<Box> boxes, List<Player> playe
 
     int pw = getSpriteWidth();
     int ph = getSpriteHeight();
+
+    // =====================
+    // SCREEN BOUNDS (X)
+    // =====================
+    final int SCREEN_WIDTH  = 1200;
+    final int SCREEN_HEIGHT = 800;
+    if (x < 0) x = 0;
+    if (x + pw > SCREEN_WIDTH) x = SCREEN_WIDTH - pw;
 
     int prevFeet = y + ph;
 
@@ -269,6 +294,9 @@ public void update(List<Platform> platforms, List<Box> boxes, List<Player> playe
     // ANIMATION
     // =====================
     updateAnimation();
+
+    // Reset carry flag for next frame
+    carriedThisFrame = false;
 }
 
 public void updateAnimation() {

@@ -55,16 +55,20 @@ public class Platform {
             return;
         }
         if (image != null) {
-            g.drawImage(image, x, y, width, height, null);
+            // Tile the platform image across the width, crop to exact height
+            int imgW = image.getWidth();
+            int imgH = image.getHeight();
+            for (int drawX = x; drawX < x + width; drawX += imgW) {
+                int tileW = Math.min(imgW, x + width - drawX);
+                g.drawImage(image,
+                    drawX, y, drawX + tileW, y + height,  // dest
+                    0, 0, tileW, imgH,                     // src
+                    null);
+            }
         } else {
             g.setColor(color);
             g.fillRect(x, y, width, height);
-            g.setColor(Color.BLACK);
-            g.drawRect(x, y, width, height); // Outline
         }
-            // Collision box
-            g.setColor(Color.YELLOW);
-            g.drawRect(x, y, width, height);
     }
 
     // Getters

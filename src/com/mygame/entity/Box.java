@@ -168,9 +168,7 @@ public class Box {
             g.setColor(new Color(139, 69, 19));
             g.fillRect((int)x, (int)y, width, height);
         }
-        // Collision box
-        g.setColor(java.awt.Color.MAGENTA);
-        g.drawRect((int)x, (int)y, width, height);
+
     }
 
     public int getX() { return (int)x; }

@@ -146,7 +146,7 @@ public abstract class Stage {
         if (background != null) {
             java.awt.Composite oldComposite = g2.getComposite();
             g2.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 0.75f));
-            g2.drawImage(background, 0, 0, null);
+            g2.drawImage(background, 0, 0, 1200, 800, null);
             g2.setComposite(oldComposite);
         }
 
